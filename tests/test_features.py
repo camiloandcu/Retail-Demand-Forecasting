@@ -1,5 +1,7 @@
 """Feature causality, imputation, join, and model input contract tests."""
 
+import hashlib
+import json
 from dataclasses import replace
 
 import pandas as pd
@@ -163,7 +165,9 @@ def test_manifest_documents_both_model_contracts(smoke_feature_data, synthetic_c
     training, _ = build_fold_feature_batches(frames, folds[0], spec)
     splits = split_manifest(synthetic_config, folds)
     contract = model_input_contract(training)
-    manifest = feature_manifest(spec, splits["sha256"], [], training)
+    fitted = fit_preprocessor(training, folds[0].origin)
+    run_evidence = {"mode": "smoke", "gate_status": "PASS"}
+    manifest = feature_manifest(spec, splits["sha256"], [], training, run_evidence)
 
     assert contract["row_key"] == [
         "store_nbr",
@@ -175,3 +179,8 @@ def test_manifest_documents_both_model_contracts(smoke_feature_data, synthetic_c
     assert contract["recurrent"]["target_shape"] == ["batch", 16]
     assert manifest["processed_dataset_exported"] is False
     assert manifest["feature_spec_sha256"] == spec.sha256
+    assert manifest["run_evidence"] == run_evidence
+    assert len(fitted.sha256) == 64
+    unhashed = {key: value for key, value in manifest.items() if key != "sha256"}
+    canonical = json.dumps(unhashed, sort_keys=True, separators=(",", ":"))
+    assert manifest["sha256"] == hashlib.sha256(canonical.encode()).hexdigest()

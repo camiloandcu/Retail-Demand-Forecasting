@@ -10,7 +10,7 @@ def test_feature_notebook_enforces_the_real_temporal_contract() -> None:
 
     assert notebook["nbformat"] == 4
     assert "Open In Colab" in full_text
-    assert "Why the horizon is 16, not 15" in full_text
+    assert "The 16 horizons correspond to the 16 dates present in `test.csv`" in full_text
     assert "build_fold_feature_batches" in full_text
     assert "tests/test_splits.py" in full_text
     assert "tests/test_features.py" in full_text

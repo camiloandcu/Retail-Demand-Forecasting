@@ -100,6 +100,13 @@ class FittedPreprocessor:
             },
         }
 
+    @property
+    def sha256(self) -> str:
+        """Hash the exact fold-fitted imputation and vocabulary state."""
+
+        canonical = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
 
 def _parse_dates(frame: pd.DataFrame, name: str) -> pd.DataFrame:
     parsed = frame.copy()
@@ -510,6 +517,7 @@ def feature_manifest(
     split_sha256: str,
     fold_runs: list[dict[str, Any]],
     example_batch: FeatureBatch,
+    run_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build small feature metadata without exporting the transformed panel."""
 
@@ -524,6 +532,8 @@ def feature_manifest(
         "model_input_contract": model_input_contract(example_batch),
         "processed_dataset_exported": False,
     }
+    if run_evidence is not None:
+        payload["run_evidence"] = run_evidence
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return {**payload, "sha256": hashlib.sha256(canonical.encode()).hexdigest()}
 
