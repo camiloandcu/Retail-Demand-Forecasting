@@ -37,6 +37,8 @@ manifest and EDA summary without changing the raw inputs.
 
 [![Open 01 - Data audit and EDA in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/01_data_audit_eda.ipynb)
 
+[![Open 02 - Leakage-safe feature pipeline in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/02_feature_pipeline.ipynb)
+
 ```bash
 make train
 make evaluate

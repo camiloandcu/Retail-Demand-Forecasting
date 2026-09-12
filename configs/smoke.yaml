@@ -14,6 +14,7 @@ forecast:
   seasonal_period: 7
 validation:
   origins:
+    - "2020-02-01"
     - "2020-02-17"
 runtime:
   seed: 2026
