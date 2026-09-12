@@ -1,0 +1,22 @@
+project:
+  mode: full
+paths:
+  raw_data_dir: data/raw
+  artifacts_dir: artifacts/full
+data:
+  source: kaggle
+  expected_stores: 54
+  expected_families: 33
+  fixture_start_date: "2020-01-01"
+  fixture_history_days: 64
+forecast:
+  horizon: 16
+  seasonal_period: 7
+validation:
+  origins:
+    - "2017-06-28"
+    - "2017-07-14"
+    - "2017-07-30"
+runtime:
+  seed: 2026
+  log_level: INFO

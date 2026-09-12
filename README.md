@@ -1,1 +1,61 @@
 # Retail Demand Forecasting
+
+A reproducible, multi-horizon forecasting project built around Kaggle's
+Corporación Favorita Store Sales dataset. The final pipeline will forecast 16
+daily sales values for every store-family series and evaluate them with
+rolling-origin validation.
+
+The repository is intentionally code-first. Notebooks will explain and
+orchestrate the workflow, while metrics, data contracts, feature engineering,
+training, and inference live in the installable `retail_forecast` package.
+
+## Quick start
+
+Python 3.10–3.12 and [uv](https://docs.astral.sh/uv/) are supported.
+
+```bash
+make install
+make lint
+make test
+make smoke
+```
+
+`make smoke` creates a tiny deterministic synthetic dataset, evaluates the
+seasonal-naive baseline, trains its inference artifact, and writes a submission
+shaped file. It does not download Kaggle data and its outputs are not project
+results.
+
+## Real data
+
+Competition data is not distributed with this repository. After accepting the
+Kaggle competition rules, place the seven CSV files under `data/raw/`. See
+[`data/README.md`](data/README.md) for the expected layout.
+
+Start with the data audit notebook. It can download the competition files with
+a Colab secret, validates their hashes and schemas, and writes a reproducible
+manifest and EDA summary without changing the raw inputs.
+
+[![Open 01 - Data audit and EDA in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/01_data_audit_eda.ipynb)
+
+```bash
+make train
+make evaluate
+make predict
+```
+
+These commands default to `configs/full.yaml`. Override the configuration with
+`make train CONFIG=configs/smoke.yaml` when needed.
+
+## Repository contract
+
+- The five numbered notebooks will live in the repository root for the academic
+  submission.
+- Notebooks import `retail_forecast`; they do not reimplement metrics, features,
+  training, or inference.
+- `configs/smoke.yaml` and `configs/full.yaml` share one validated schema.
+- Generated datasets, models, predictions, MLflow state, checkpoints, and
+  credentials stay outside Git.
+- CI uses only generated synthetic fixtures.
+
+This project is designed to be reproducible, tested, and production-oriented;
+it is not presented as production-ready.

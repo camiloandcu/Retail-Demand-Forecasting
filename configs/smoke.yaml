@@ -1,0 +1,20 @@
+project:
+  mode: smoke
+paths:
+  raw_data_dir: data/synthetic
+  artifacts_dir: artifacts/smoke
+data:
+  source: synthetic
+  expected_stores: 2
+  expected_families: 2
+  fixture_start_date: "2020-01-01"
+  fixture_history_days: 64
+forecast:
+  horizon: 16
+  seasonal_period: 7
+validation:
+  origins:
+    - "2020-02-17"
+runtime:
+  seed: 2026
+  log_level: INFO
