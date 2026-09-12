@@ -14,6 +14,8 @@ def test_eda_notebook_is_colab_ready_and_keeps_logic_in_package() -> None:
     assert "KAGGLE_API_TOKEN" in full_text
     assert 'pip", "install", "-e", ".[notebook]' in full_text
     assert '"pull", "--ff-only", "origin", "main"' in full_text
+    assert "sys.path.insert(0, source_path)" in full_text
+    assert 'find_spec("retail_forecast")' in full_text
     assert full_text.count("save_figure(") == 9
     assert "def rmsle" not in full_text
     assert "train_test_split" not in full_text
