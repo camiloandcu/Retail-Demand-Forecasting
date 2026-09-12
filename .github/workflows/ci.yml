@@ -11,14 +11,17 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
       - name: Install
-        run: uv sync --extra dev --frozen
+        run: uv sync --extra dev --extra notebook --frozen
       - name: Lint and format check
         run: make lint
       - name: Unit tests

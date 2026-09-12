@@ -11,7 +11,7 @@ training, and inference live in the installable `retail_forecast` package.
 
 ## Quick start
 
-Python 3.10–3.12 and [uv](https://docs.astral.sh/uv/) are supported.
+Python 3.10–3.13 and [uv](https://docs.astral.sh/uv/) are supported.
 
 ```bash
 make install

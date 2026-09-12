@@ -142,7 +142,9 @@ def validate_dataset(config: ProjectConfig) -> DatasetSummary:
 
     test_dates = pd.DatetimeIndex(sorted(test["date"].unique()))
     expected_dates = pd.date_range(
-        train["date"].max() + pd.Timedelta(days=1), periods=config.forecast.horizon, freq="D"
+        train["date"].max() + pd.offsets.Day(1),
+        periods=config.forecast.horizon,
+        freq="D",
     )
     if not test_dates.equals(expected_dates):
         raise DataContractError("Test dates must be the contiguous 16-day period after train")
@@ -190,7 +192,7 @@ def write_synthetic_dataset(config: ProjectConfig) -> Path:
         config.data.fixture_start_date, periods=config.data.fixture_history_days, freq="D"
     )
     test_dates = pd.date_range(
-        train_dates.max() + pd.Timedelta(days=1), periods=config.forecast.horizon, freq="D"
+        train_dates.max() + pd.offsets.Day(1), periods=config.forecast.horizon, freq="D"
     )
 
     train_rows: list[dict[str, object]] = []

@@ -53,7 +53,7 @@ def evaluate(config: ProjectConfig) -> Path:
 
     for origin in config.validation.origins:
         origin_timestamp = pd.Timestamp(origin)
-        validation_end = origin_timestamp + pd.Timedelta(days=config.forecast.horizon)
+        validation_end = origin_timestamp + pd.offsets.Day(config.forecast.horizon)
         validation = train_frame.loc[
             (train_frame["date"] > origin_timestamp) & (train_frame["date"] <= validation_end)
         ].copy()
