@@ -12,7 +12,8 @@ def test_eda_notebook_is_colab_ready_and_keeps_logic_in_package() -> None:
     assert notebook["nbformat"] == 4
     assert "Open In Colab" in full_text
     assert "KAGGLE_API_TOKEN" in full_text
-    assert 'pip", "install", "--quiet", "-e", ".[notebook]' in full_text
+    assert 'pip", "install", "-e", ".[notebook]' in full_text
+    assert '"pull", "--ff-only", "origin", "main"' in full_text
     assert full_text.count("save_figure(") == 9
     assert "def rmsle" not in full_text
     assert "train_test_split" not in full_text
