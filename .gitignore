@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Local environments and credentials
+.env
+.env.*
+kaggle.json
+.kaggle/
+**/kaggle.json
+
+# Competition and generated data
+/data/*
+!/data/README.md
+*.zip
+*.7z
+*.tar
+*.tar.gz
+
+# Pipeline outputs
+/artifacts/
+/artifacts/metrics/
+/artifacts/figures/
+/checkpoints/
+/mlruns/
+/mlartifacts/
+*.ckpt
+*.h5
+*.keras
+*.joblib
+*.pkl
+
+# Notebook and editor state
+.ipynb_checkpoints/
+.idea/
+.vscode/
+.DS_Store
