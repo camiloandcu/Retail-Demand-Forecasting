@@ -10,6 +10,17 @@ def test_feature_notebook_enforces_the_real_temporal_contract() -> None:
 
     assert notebook["nbformat"] == 4
     assert "Open In Colab" in full_text
+    assert 'BRANCH = "feat-leakage-safe-features"' in full_text
+    assert '"--branch"' in full_text
+    assert '"--single-branch"' in full_text
+    assert '"fetch", "--depth", "1", "origin", BRANCH' in full_text
+    assert '"checkout", "--detach", "FETCH_HEAD"' in full_text
+    assert "Kaggle API token" in full_text
+    assert "token_reader=getpass" in full_text
+    assert "acquire_competition_data" in full_text
+    assert "USE_KAGGLE_SECRET" not in full_text
+    assert "userdata" not in full_text
+    assert "files.upload" not in full_text
     assert "The 16 horizons correspond to the 16 dates present in `test.csv`" in full_text
     assert "build_fold_feature_batches" in full_text
     assert "tests/test_splits.py" in full_text
