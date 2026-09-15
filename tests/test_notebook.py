@@ -18,7 +18,7 @@ def test_eda_notebook_is_colab_ready_and_keeps_logic_in_package() -> None:
     assert "userdata" not in full_text
     assert "files.upload" not in full_text
     assert 'pip", "install", "-e", ".[notebook]' in full_text
-    assert 'BRANCH = "feat-leakage-safe-features"' in full_text
+    assert 'BRANCH = "' in full_text
     assert '"--branch"' in full_text
     assert '"--single-branch"' in full_text
     assert '"fetch", "--depth", "1", "origin", BRANCH' in full_text

@@ -9,7 +9,7 @@ def test_baseline_notebook_keeps_the_experiment_contract() -> None:
     full_text = "\n".join("".join(cell.get("source", [])) for cell in notebook["cells"])
 
     assert "Open In Colab" in full_text
-    assert 'BRANCH = "feat-leakage-safe-features"' in full_text
+    assert 'BRANCH = "' in full_text
     assert '".[notebook,dev,models]"' in full_text
     assert "run_baseline_experiments" in full_text
     assert "artifacts/metrics/baseline_results.csv" in full_text

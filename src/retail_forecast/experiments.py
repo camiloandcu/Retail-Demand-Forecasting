@@ -43,18 +43,31 @@ BUSINESS_BASELINE_IDS = ("seasonal_naive_7d", "seasonal_average_4w")
 
 def training_origins(
     fold: RollingOriginFold,
-    first_observed_date: pd.Timestamp,
+    available_dates: pd.Series | pd.DatetimeIndex,
     *,
     stride_days: int,
     max_origins: int,
 ) -> tuple[pd.Timestamp, ...]:
-    """Pre-register chronological supervised origins ending before validation."""
+    """Keep only pre-registered origins with a complete observed target horizon."""
 
+    observed = pd.DatetimeIndex(pd.to_datetime(available_dates, errors="raise")).normalize()
+    if observed.empty:
+        raise ValueError("Observed training dates cannot be empty")
+    observed = pd.DatetimeIndex(observed.unique()).sort_values()
+    if observed.max() < fold.origin:
+        raise ValueError(f"Training dates do not reach the forecast origin for {fold.name}")
     latest = fold.origin - pd.offsets.Day(fold.horizon)
     candidates = [latest - pd.offsets.Day(index * stride_days) for index in range(max_origins)]
-    valid = [origin for origin in candidates if origin >= pd.Timestamp(first_observed_date)]
+    valid = [
+        origin
+        for origin in candidates
+        if origin >= observed.min()
+        and pd.date_range(origin + pd.offsets.Day(1), periods=fold.horizon, freq="D")
+        .isin(observed)
+        .all()
+    ]
     if not valid:
-        raise ValueError(f"No training origin is available for {fold.name}")
+        raise ValueError(f"No complete training horizon is available for {fold.name}")
     return tuple(sorted(valid))
 
 
@@ -199,6 +212,7 @@ def run_baseline_experiments(
     cost_records: list[dict[str, Any]] = []
     model_paths: list[Path] = []
     training_origins_by_fold: dict[str, list[str]] = {}
+    skipped_training_origins_by_fold: dict[str, dict[str, list[str]]] = {}
     feature_contract: dict[str, Any] | None = None
 
     for fold in folds:
@@ -260,11 +274,30 @@ def run_baseline_experiments(
         tree_started = time.perf_counter()
         origins = training_origins(
             fold,
-            train["date"].min(),
+            train["date"],
             stride_days=config.baseline.training_origin_stride_days,
             max_origins=config.baseline.max_training_origins,
         )
         training_origins_by_fold[fold.name] = [origin.date().isoformat() for origin in origins]
+        observed_dates = pd.DatetimeIndex(train["date"].unique())
+        selected = set(origins)
+        latest = fold.origin - pd.offsets.Day(fold.horizon)
+        skipped_training_origins_by_fold[fold.name] = {
+            origin.date().isoformat(): [
+                date.date().isoformat()
+                for date in pd.date_range(
+                    origin + pd.offsets.Day(1), periods=fold.horizon, freq="D"
+                )
+                if date not in observed_dates
+            ]
+            for index in range(config.baseline.max_training_origins)
+            if (
+                origin := latest
+                - pd.offsets.Day(index * config.baseline.training_origin_stride_days)
+            )
+            >= observed_dates.min()
+            and origin not in selected
+        }
         for origin in origins:
             if origin not in batch_cache:
                 batch_cache[origin] = build_origin_feature_batch(feature_frames, origin, spec)
@@ -463,6 +496,7 @@ def run_baseline_experiments(
         "tree_selected_before_training": "lightgbm",
         "folds": [fold.to_dict() for fold in folds],
         "training_origins_by_fold": training_origins_by_fold,
+        "skipped_training_origins_by_fold": skipped_training_origins_by_fold,
         "feature_contract": feature_contract,
         "input_files": input_files,
         "config_path": str(config.config_path),

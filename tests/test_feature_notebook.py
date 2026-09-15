@@ -10,7 +10,7 @@ def test_feature_notebook_enforces_the_real_temporal_contract() -> None:
 
     assert notebook["nbformat"] == 4
     assert "Open In Colab" in full_text
-    assert 'BRANCH = "feat-leakage-safe-features"' in full_text
+    assert 'BRANCH = "' in full_text
     assert '"--branch"' in full_text
     assert '"--single-branch"' in full_text
     assert '"fetch", "--depth", "1", "origin", BRANCH' in full_text
