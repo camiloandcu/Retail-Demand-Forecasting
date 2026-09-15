@@ -67,3 +67,51 @@ def predict_seasonal_naive(model: dict[str, Any], frame: pd.DataFrame) -> pd.Ser
             )
         values.append(max(0.0, float(value)))
     return pd.Series(values, index=frame.index, name="sales", dtype=float)
+
+
+def fit_seasonal_average(
+    train: pd.DataFrame,
+    origin: date | pd.Timestamp,
+    weeks: int = 4,
+    seasonal_period: int = 7,
+) -> dict[str, Any]:
+    """Average the last pre-registered number of same-weekday observations."""
+
+    if weeks <= 0:
+        raise ValueError("Seasonal-average weeks must be positive")
+    if seasonal_period != 7:
+        raise ValueError("The current daily seasonal average requires a period of 7")
+    history = train.copy()
+    history["date"] = pd.to_datetime(history["date"], errors="raise")
+    cutoff = pd.Timestamp(origin)
+    history = history.loc[history["date"] <= cutoff].sort_values("date")
+    if history.empty or (history["sales"] < 0).any():
+        raise ValueError("Seasonal-average history must be present and non-negative")
+    history["weekday"] = history["date"].dt.dayofweek
+    recent = history.groupby(["store_nbr", "family", "weekday"], sort=True).tail(weeks)
+    weekday_mean = recent.groupby(["store_nbr", "family", "weekday"], observed=True)["sales"].mean()
+    series_mean = history.groupby(["store_nbr", "family"], observed=True)["sales"].tail(
+        weeks * seasonal_period
+    )
+    fallback_frame = history.loc[series_mean.index]
+    fallback_mean = fallback_frame.groupby(["store_nbr", "family"], observed=True)["sales"].mean()
+    return {
+        "model_type": f"seasonal_average_{weeks}w",
+        "origin": cutoff.date().isoformat(),
+        "seasonal_period": seasonal_period,
+        "weeks": weeks,
+        "weekday_values": {
+            _key(store, family, weekday): float(value)
+            for (store, family, weekday), value in weekday_mean.items()
+        },
+        "fallback_values": {
+            _key(store, family, "fallback"): float(value)
+            for (store, family), value in fallback_mean.items()
+        },
+    }
+
+
+def predict_seasonal_average(model: dict[str, Any], frame: pd.DataFrame) -> pd.Series:
+    """Predict from a fitted same-weekday seasonal-average artifact."""
+
+    return predict_seasonal_naive(model, frame)

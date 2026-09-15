@@ -1,7 +1,7 @@
 # Retail Demand Forecasting
 
 A reproducible, multi-horizon forecasting project built around Kaggle's
-Corporación Favorita Store Sales dataset. The final pipeline will forecast 16
+Store Sales dataset. The final pipeline will forecast 16
 daily sales values for every store-family series and evaluate them with
 rolling-origin validation.
 
@@ -27,15 +27,27 @@ results.
 
 ## Real data
 
-Competition data is not distributed with this repository. After accepting the
-Kaggle competition rules, place the seven CSV files under `data/raw/`. See
-[`data/README.md`](data/README.md) for the expected layout.
+Competition data is not distributed with this repository. The notebooks can
+download it using a Kaggle token supplied through the environment or a hidden
+prompt, or extract a ZIP downloaded manually from Kaggle. In every case, the
+validated CSVs are placed in `data/raw/`. See
+[`data/README.md`](data/README.md) for both workflows.
 
-Start with the data audit notebook. It can download the competition files with
-a Colab secret, validates their hashes and schemas, and writes a reproducible
-manifest and EDA summary without changing the raw inputs.
+Start with the data audit notebook. It validates the file hashes and schemas,
+then writes a reproducible manifest and EDA summary without changing the raw
+inputs.
 
 [![Open 01 - Data audit and EDA in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/01_data_audit_eda.ipynb)
+
+[![Open 02 - Leakage-safe feature pipeline in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/02_feature_pipeline.ipynb)
+
+[![Open 03 - Non-neural baselines in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/03_non_neural_baselines.ipynb)
+
+Run the same baseline workflow from the command line with synthetic fixtures:
+
+```bash
+make baseline CONFIG=configs/smoke.yaml
+```
 
 ```bash
 make train

@@ -11,7 +11,16 @@ from typing import Any
 def capture_versions() -> dict[str, Any]:
     """Return runtime and dependency versions without importing optional models."""
 
-    packages = ["numpy", "pandas", "PyYAML", "retail-forecast", "tensorflow", "mlflow"]
+    packages = [
+        "numpy",
+        "pandas",
+        "PyYAML",
+        "retail-forecast",
+        "lightgbm",
+        "scikit-learn",
+        "tensorflow",
+        "mlflow",
+    ]
     installed: dict[str, str | None] = {}
     for package in packages:
         try:

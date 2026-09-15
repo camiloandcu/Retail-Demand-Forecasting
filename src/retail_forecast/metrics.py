@@ -20,3 +20,14 @@ def rmsle(y_true: ArrayLike, y_pred: ArrayLike) -> float:
     if (actual < 0).any() or (predicted < 0).any():
         raise ValueError("RMSLE inputs must be non-negative")
     return float(np.sqrt(np.mean(np.square(np.log1p(predicted) - np.log1p(actual)))))
+
+
+def clip_nonnegative_predictions(values: ArrayLike) -> np.ndarray:
+    """Clip raw model outputs at zero before RMSLE or submission generation."""
+
+    predictions = np.asarray(values, dtype=np.float64)
+    if predictions.size == 0:
+        raise ValueError("Prediction clipping requires at least one value")
+    if not np.isfinite(predictions).all():
+        raise ValueError("Predictions must be finite before clipping")
+    return np.maximum(predictions, 0.0)

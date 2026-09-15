@@ -1,6 +1,6 @@
 CONFIG ?= configs/full.yaml
 
-.PHONY: install test lint smoke train evaluate predict
+.PHONY: install test lint smoke baseline train evaluate predict
 
 install:
 	uv sync --extra dev
@@ -14,6 +14,9 @@ lint:
 
 smoke:
 	uv run retail-forecast smoke --config configs/smoke.yaml
+
+baseline:
+	uv run --extra models --extra notebook retail-forecast baseline --config $(CONFIG)
 
 train:
 	uv run retail-forecast train --config $(CONFIG)

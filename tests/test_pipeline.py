@@ -21,4 +21,4 @@ def test_smoke_runs_batch_inference_without_external_data(
     assert list(submission.columns) == ["id", "sales"]
     assert (submission["sales"] >= 0).all()
     assert evaluation["smoke"] is True
-    assert len(evaluation["folds"]) == 1
+    assert len(evaluation["folds"]) == 2
