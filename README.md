@@ -41,6 +41,14 @@ inputs.
 
 [![Open 02 - Leakage-safe feature pipeline in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/02_feature_pipeline.ipynb)
 
+[![Open 03 - Non-neural baselines in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/03_non_neural_baselines.ipynb)
+
+Run the same baseline workflow from the command line with synthetic fixtures:
+
+```bash
+make baseline CONFIG=configs/smoke.yaml
+```
+
 ```bash
 make train
 make evaluate

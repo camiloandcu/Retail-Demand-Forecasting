@@ -16,6 +16,20 @@ validation:
   origins:
     - "2020-02-01"
     - "2020-02-17"
+baseline:
+  sanity_model: zero
+  seasonal_average_weeks: 4
+  training_origin_stride_days: 16
+  max_training_origins: 2
+  neural_min_relative_improvement: 0.02
+  oof_git_limit_mb: 1
+  tree_model: lightgbm
+  tree_n_estimators: 30
+  tree_learning_rate: 0.05
+  tree_num_leaves: 15
+  tree_min_child_samples: 5
+  tree_feature_fraction: 0.8
+  tree_l2: 1.0
 runtime:
   seed: 2026
   log_level: INFO

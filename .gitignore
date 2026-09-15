@@ -32,6 +32,7 @@ kaggle.json
 /checkpoints/
 /mlruns/
 /mlartifacts/
+mlflow.db
 *.ckpt
 *.h5
 *.keras

@@ -303,6 +303,14 @@ def build_feature_batch(
     _require_history_boundary(history, origin, "sales_history")
     _require_history_boundary(transactions, origin, "transaction_history")
     _validate_target_grid(target, origin, spec.horizon)
+    sales_lookback = max(max(spec.sales_lags), max(spec.sales_windows))
+    transaction_lookback = max(max(spec.transaction_lags), max(spec.transaction_windows))
+    history = history.loc[
+        history[TIME_COLUMN] >= origin - pd.offsets.Day(sales_lookback - 1)
+    ].copy()
+    transactions = transactions.loc[
+        transactions[TIME_COLUMN] >= origin - pd.offsets.Day(transaction_lookback - 1)
+    ].copy()
     if history.duplicated([TIME_COLUMN, *SERIES_KEYS]).any():
         raise FeatureContractError("Sales history keys must be unique")
     if transactions.duplicated([TIME_COLUMN, "store_nbr"]).any():
@@ -379,33 +387,60 @@ def build_fold_feature_batches(
 ) -> tuple[FeatureBatch, FeatureBatch]:
     """Create a closed training window and the following validation horizon."""
 
-    train = _parse_dates(frames["train.csv"], "train.csv")
-    transactions = _parse_dates(frames["transactions.csv"], "transactions.csv")
     training_origin = fold.origin - pd.offsets.Day(fold.horizon)
-
-    def make(origin: pd.Timestamp) -> FeatureBatch:
-        target_dates = pd.date_range(origin + pd.offsets.Day(1), periods=spec.horizon, freq="D")
-        target = train.loc[train[TIME_COLUMN].isin(target_dates)].copy()
-        history = train.loc[train[TIME_COLUMN] <= origin].copy()
-        transaction_history = transactions.loc[transactions[TIME_COLUMN] <= origin].copy()
-        return build_feature_batch(
-            history,
-            target,
-            frames["stores.csv"],
-            frames["oil.csv"],
-            frames["holidays_events.csv"],
-            transaction_history,
-            origin,
-            spec,
-        )
-
-    training = make(training_origin)
-    validation = make(fold.origin)
+    training = build_origin_feature_batch(frames, training_origin, spec)
+    validation = build_origin_feature_batch(frames, fold.origin, spec)
     if training.frame["target_date"].max() > fold.origin:
         raise SplitContractError("Preprocessor training targets cross the validation origin")
     if validation.frame["target_date"].min() <= fold.origin:
         raise SplitContractError("Validation features overlap the training window")
     return training, validation
+
+
+def build_origin_feature_batch(
+    frames: dict[str, pd.DataFrame], origin: pd.Timestamp, spec: FeatureSpec
+) -> FeatureBatch:
+    """Build one supervised direct-horizon batch anchored at an observed origin."""
+
+    normalized_origin = pd.Timestamp(origin).normalize()
+    train_source = frames["train.csv"]
+    transaction_source = frames["transactions.csv"]
+    train = (
+        train_source
+        if pd.api.types.is_datetime64_any_dtype(train_source[TIME_COLUMN])
+        else _parse_dates(train_source, "train.csv")
+    )
+    transactions = (
+        transaction_source
+        if pd.api.types.is_datetime64_any_dtype(transaction_source[TIME_COLUMN])
+        else _parse_dates(transaction_source, "transactions.csv")
+    )
+    target_dates = pd.date_range(
+        normalized_origin + pd.offsets.Day(1), periods=spec.horizon, freq="D"
+    )
+    target = train.loc[train[TIME_COLUMN].isin(target_dates)].copy()
+    sales_lookback = max(max(spec.sales_lags), max(spec.sales_windows))
+    history = train.loc[
+        train[TIME_COLUMN].between(
+            normalized_origin - pd.offsets.Day(sales_lookback - 1), normalized_origin
+        )
+    ].copy()
+    transaction_lookback = max(max(spec.transaction_lags), max(spec.transaction_windows))
+    transaction_history = transactions.loc[
+        transactions[TIME_COLUMN].between(
+            normalized_origin - pd.offsets.Day(transaction_lookback - 1), normalized_origin
+        )
+    ].copy()
+    return build_feature_batch(
+        history,
+        target,
+        frames["stores.csv"],
+        frames["oil.csv"],
+        frames["holidays_events.csv"],
+        transaction_history,
+        normalized_origin,
+        spec,
+    )
 
 
 def fit_preprocessor(batch: FeatureBatch, fitted_through: pd.Timestamp) -> FittedPreprocessor:

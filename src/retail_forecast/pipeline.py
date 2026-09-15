@@ -11,13 +11,29 @@ import pandas as pd
 
 from retail_forecast.baseline import fit_seasonal_naive, predict_seasonal_naive
 from retail_forecast.config import ProjectConfig
-from retail_forecast.data import validate_dataset, write_synthetic_dataset
+from retail_forecast.data import load_frames, validate_dataset, write_synthetic_dataset
+from retail_forecast.experiments import run_baseline_experiments
 from retail_forecast.io_utils import read_json, write_json
 from retail_forecast.metrics import rmsle
 from retail_forecast.reproducibility import set_global_seed
 from retail_forecast.versions import capture_versions
 
 LOGGER = logging.getLogger(__name__)
+
+
+def baseline_experiment(config: ProjectConfig) -> dict[str, Any]:
+    """Run the complete non-neural benchmark from the command line."""
+
+    set_global_seed(config.runtime.seed)
+    validate_dataset(config)
+    frames = load_frames(config.paths.raw_data_dir)
+    return run_baseline_experiments(
+        config,
+        frames,
+        config.project_root / "artifacts/metrics",
+        config.project_root / "artifacts/figures/baselines",
+        config.project_root / "mlruns",
+    )["manifest"]
 
 
 def _metadata(config: ProjectConfig) -> dict[str, Any]:

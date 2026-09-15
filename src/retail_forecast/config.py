@@ -51,6 +51,25 @@ class ValidationConfig:
 
 
 @dataclass(frozen=True)
+class BaselineConfig:
+    """Pre-registered baseline and single-tree experiment budget."""
+
+    sanity_model: str
+    seasonal_average_weeks: int
+    training_origin_stride_days: int
+    max_training_origins: int
+    neural_min_relative_improvement: float
+    oof_git_limit_mb: int
+    tree_model: str
+    tree_n_estimators: int
+    tree_learning_rate: float
+    tree_num_leaves: int
+    tree_min_child_samples: int
+    tree_feature_fraction: float
+    tree_l2: float
+
+
+@dataclass(frozen=True)
 class RuntimeConfig:
     """Cross-cutting reproducibility settings."""
 
@@ -67,6 +86,7 @@ class ProjectConfig:
     data: DataConfig
     forecast: ForecastConfig
     validation: ValidationConfig
+    baseline: BaselineConfig
     runtime: RuntimeConfig
     config_path: Path
     project_root: Path
@@ -84,6 +104,21 @@ SCHEMA: dict[str, set[str]] = {
     },
     "forecast": {"horizon", "seasonal_period"},
     "validation": {"origins"},
+    "baseline": {
+        "sanity_model",
+        "seasonal_average_weeks",
+        "training_origin_stride_days",
+        "max_training_origins",
+        "neural_min_relative_improvement",
+        "oof_git_limit_mb",
+        "tree_model",
+        "tree_n_estimators",
+        "tree_learning_rate",
+        "tree_num_leaves",
+        "tree_min_child_samples",
+        "tree_feature_fraction",
+        "tree_l2",
+    },
     "runtime": {"seed", "log_level"},
 }
 
@@ -104,6 +139,24 @@ def _positive_int(value: Any, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ConfigError(f"'{name}' must be a positive integer")
     return value
+
+
+def _bounded_float(value: Any, name: str, lower: float, upper: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigError(f"'{name}' must be numeric")
+    result = float(value)
+    if not lower < result <= upper:
+        raise ConfigError(f"'{name}' must be in ({lower}, {upper}]")
+    return result
+
+
+def _nonnegative_float(value: Any, name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigError(f"'{name}' must be numeric")
+    result = float(value)
+    if result < 0:
+        raise ConfigError(f"'{name}' must be non-negative")
+    return result
 
 
 def _parse_date(value: Any, name: str) -> date:
@@ -139,10 +192,19 @@ def load_config(path: str | Path) -> ProjectConfig:
         raise ConfigError("Full mode must use the Kaggle source")
     if log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         raise ConfigError("'runtime.log_level' is not a standard logging level")
+    baseline = sections["baseline"]
+    if baseline["sanity_model"] != "zero":
+        raise ConfigError("This experiment pre-registers zero as the only sanity model")
+    if baseline["tree_model"] != "lightgbm":
+        raise ConfigError("Exactly one tree model is allowed: lightgbm")
+    if baseline["seasonal_average_weeks"] != 4:
+        raise ConfigError("The seasonal-average variant is pre-registered at four weeks")
 
     horizon = _positive_int(sections["forecast"]["horizon"], "forecast.horizon")
     if horizon != PROJECT_HORIZON:
         raise ConfigError(f"This project requires a {PROJECT_HORIZON}-day horizon")
+    if baseline["training_origin_stride_days"] != horizon:
+        raise ConfigError("Training origins must use the same stride as the forecast horizon")
 
     origins_raw = sections["validation"]["origins"]
     if not isinstance(origins_raw, list) or not origins_raw:
@@ -185,6 +247,46 @@ def load_config(path: str | Path) -> ProjectConfig:
             ),
         ),
         validation=ValidationConfig(origins=origins),
+        baseline=BaselineConfig(
+            sanity_model=str(baseline["sanity_model"]),
+            seasonal_average_weeks=_positive_int(
+                baseline["seasonal_average_weeks"], "baseline.seasonal_average_weeks"
+            ),
+            training_origin_stride_days=_positive_int(
+                baseline["training_origin_stride_days"],
+                "baseline.training_origin_stride_days",
+            ),
+            max_training_origins=_positive_int(
+                baseline["max_training_origins"], "baseline.max_training_origins"
+            ),
+            neural_min_relative_improvement=_bounded_float(
+                baseline["neural_min_relative_improvement"],
+                "baseline.neural_min_relative_improvement",
+                0.0,
+                1.0,
+            ),
+            oof_git_limit_mb=_positive_int(
+                baseline["oof_git_limit_mb"], "baseline.oof_git_limit_mb"
+            ),
+            tree_model=str(baseline["tree_model"]),
+            tree_n_estimators=_positive_int(
+                baseline["tree_n_estimators"], "baseline.tree_n_estimators"
+            ),
+            tree_learning_rate=_bounded_float(
+                baseline["tree_learning_rate"], "baseline.tree_learning_rate", 0.0, 1.0
+            ),
+            tree_num_leaves=_positive_int(baseline["tree_num_leaves"], "baseline.tree_num_leaves"),
+            tree_min_child_samples=_positive_int(
+                baseline["tree_min_child_samples"], "baseline.tree_min_child_samples"
+            ),
+            tree_feature_fraction=_bounded_float(
+                baseline["tree_feature_fraction"],
+                "baseline.tree_feature_fraction",
+                0.0,
+                1.0,
+            ),
+            tree_l2=_nonnegative_float(baseline["tree_l2"], "baseline.tree_l2"),
+        ),
         runtime=RuntimeConfig(
             seed=_positive_int(sections["runtime"]["seed"], "runtime.seed"),
             log_level=log_level,
