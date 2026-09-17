@@ -1,6 +1,7 @@
 """Non-neural experiment protocol tests."""
 
 import pandas as pd
+import pytest
 
 from retail_forecast.experiments import (
     MODEL_IDS,
@@ -27,11 +28,51 @@ def test_training_origins_end_before_validation() -> None:
         validation_end=pd.Timestamp("2020-03-17"),
         horizon=16,
     )
-    origins = training_origins(fold, pd.Timestamp("2020-01-01"), stride_days=16, max_origins=3)
+    observed = pd.date_range("2020-01-01", "2020-03-01", freq="D")
+    origins = training_origins(fold, observed, stride_days=16, max_origins=3)
 
     assert origins == tuple(sorted(origins))
     assert origins[-1] + pd.offsets.Day(16) == fold.origin
     assert len(origins) == 3
+
+
+def test_training_origins_skip_missing_target_dates_without_filling_sales() -> None:
+    fold = RollingOriginFold(
+        name="fold_1",
+        train_start=pd.Timestamp("2013-01-01"),
+        origin=pd.Timestamp("2017-06-28"),
+        train_end=pd.Timestamp("2017-06-28"),
+        validation_start=pd.Timestamp("2017-06-29"),
+        validation_end=pd.Timestamp("2017-07-14"),
+        horizon=16,
+    )
+    observed = pd.date_range("2013-01-01", fold.origin, freq="D").difference(
+        pd.DatetimeIndex(["2013-12-25", "2014-12-25", "2015-12-25", "2016-12-25"])
+    )
+    origins = training_origins(fold, observed, stride_days=16, max_origins=24)
+
+    assert len(origins) == 23
+    assert pd.Timestamp("2016-12-18") not in origins
+    assert all(
+        pd.date_range(origin + pd.offsets.Day(1), periods=16, freq="D").isin(observed).all()
+        for origin in origins
+    )
+    assert all(origin + pd.offsets.Day(16) <= fold.origin for origin in origins)
+
+
+def test_training_origins_fail_when_no_complete_horizon_exists() -> None:
+    fold = RollingOriginFold(
+        name="fold_1",
+        train_start=pd.Timestamp("2020-01-01"),
+        origin=pd.Timestamp("2020-02-01"),
+        train_end=pd.Timestamp("2020-02-01"),
+        validation_start=pd.Timestamp("2020-02-02"),
+        validation_end=pd.Timestamp("2020-02-17"),
+        horizon=16,
+    )
+    observed = pd.DatetimeIndex(["2020-01-01", "2020-02-01"])
+    with pytest.raises(ValueError, match="No complete training horizon"):
+        training_origins(fold, observed, stride_days=16, max_origins=2)
 
 
 def test_temporal_regimes_are_mutually_exclusive() -> None:
