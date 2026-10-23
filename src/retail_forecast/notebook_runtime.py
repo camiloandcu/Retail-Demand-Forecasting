@@ -64,6 +64,21 @@ def verify_loaded_source(root: Path) -> None:
                 )
 
 
+def clear_loaded_bytecode(package: str) -> None:
+    """Remove cached code for one package when its files were just replaced."""
+    for name, module in tuple(sys.modules.items()):
+        if name != package and not name.startswith(f"{package}."):
+            continue
+        cached = getattr(module, "__cached__", None)
+        if cached:
+            try:
+                Path(cached).unlink(missing_ok=True)
+            except OSError:
+                raise RuntimeError(
+                    f"Could not clear stale {package} bytecode. Restart runtime manually."
+                ) from None
+
+
 def install(root: Path, *, models: bool = False) -> None:
     """Install hashed dependencies into this interpreter, then the pinned project."""
     profile = root / "constraints" / ("02-notebook-models.txt" if models else "01-notebook.txt")
@@ -121,6 +136,10 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
                 while version_parts and version_parts[-1] == 0:
                     version_parts.pop()
                 if resident_parts != version_parts:
+                    # Colab can retain timestamp-valid bytecode after pip has
+                    # replaced the source files. Clear every loaded module cache
+                    # for this distribution so the next kernel reads the lock.
+                    clear_loaded_bytecode(name)
                     raise RuntimeError(f"{name} is already a different version. Restart kernel.")
             loaded[distribution] = version
     install(root, models=models)

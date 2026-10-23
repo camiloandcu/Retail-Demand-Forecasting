@@ -73,6 +73,23 @@ def test_foreign_import_requires_restart(tmp_path):
         runtime.verify_loaded_source(tmp_path)
 
 
+def test_stale_module_version_clears_loaded_package_bytecode(tmp_path, monkeypatch):
+    import types
+
+    package = tmp_path / "traitlets"
+    package.mkdir()
+    stale_cache = package / "__pycache__" / "_version.cpython-313.pyc"
+    stale_cache.parent.mkdir()
+    stale_cache.write_bytes(b"stale")
+    module = types.ModuleType("traitlets._version")
+    module.__cached__ = str(stale_cache)
+    monkeypatch.setitem(runtime.sys.modules, "traitlets._version", module)
+
+    runtime.clear_loaded_bytecode("traitlets")
+
+    assert not stale_cache.exists()
+
+
 def test_install_failure_stops_before_import(tmp_path, monkeypatch):
     root = Path.cwd()
     calls = []
