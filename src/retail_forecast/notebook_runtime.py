@@ -106,8 +106,21 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
         for distribution in distribution_map.get(name, []):
             version = importlib.metadata.version(distribution)
             resident = getattr(module, "__version__", None)
-            if isinstance(resident, str) and re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}", resident):
-                if resident != version:
+            # Numeric module versions can retain zero padding removed from wheel
+            # metadata (certifi 2026.07.22 == 2026.7.22). Compare release integers;
+            # non-release module strings have no general distribution contract.
+            if (
+                isinstance(resident, str)
+                and re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}", resident)
+                and re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}", version)
+            ):
+                resident_parts = [int(part) for part in resident.split(".")]
+                version_parts = [int(part) for part in version.split(".")]
+                while resident_parts and resident_parts[-1] == 0:
+                    resident_parts.pop()
+                while version_parts and version_parts[-1] == 0:
+                    version_parts.pop()
+                if resident_parts != version_parts:
                     raise RuntimeError(f"{name} is already a different version. Restart kernel.")
             loaded[distribution] = version
     install(root, models=models)

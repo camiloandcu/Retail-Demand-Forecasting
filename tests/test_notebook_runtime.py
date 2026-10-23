@@ -169,3 +169,28 @@ def test_loaded_dependency_outside_original_allowlist_requires_restart(
     )
     with pytest.raises(RuntimeError, match=f"{distribution_name}.*Restart"):
         runtime.bootstrap(root, revision, origin)
+
+
+@pytest.mark.parametrize("resident,metadata", [("2026.07.22", "2026.7.22"), ("1.2", "1.2.0")])
+def test_equivalent_release_versions_do_not_require_restart(
+    checkout, monkeypatch, resident, metadata
+):
+    import types
+
+    root, revision, origin = checkout
+    monkeypatch.setattr(runtime, "verify_loaded_source", lambda root: None)
+    monkeypatch.setattr(
+        runtime.importlib.metadata, "packages_distributions", lambda: {"certifi": ["certifi"]}
+    )
+    module = types.ModuleType("certifi")
+    module.__version__ = resident
+    monkeypatch.setitem(runtime.sys.modules, "certifi", module)
+    monkeypatch.setattr(runtime.importlib.metadata, "version", lambda name: metadata)
+
+    # Deliberately stop at installation to prove preflight accepted equivalence.
+    def reached_install(*args, **kwargs):
+        raise LookupError("reached installation")
+
+    monkeypatch.setattr(runtime, "install", reached_install)
+    with pytest.raises(LookupError, match="reached installation"):
+        runtime.bootstrap(root, revision, origin)
