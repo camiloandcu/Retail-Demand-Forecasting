@@ -13,9 +13,15 @@ make smoke
 
 For notebook 03 and baseline experiments, add `--extra models` to the sync command.
 `make baseline CONFIG=configs/smoke.yaml` selects the required extras automatically.
-Never use `PYTHONPATH` to compensate for a broken installation. Re-running frozen
-sync repairs stale editable references; the printed package path must point here.
+Never use `PYTHONPATH` to compensate for a broken installation. Frozen sync
+refreshes the project installation; the printed package path must point here. If a checkout or its `.venv` was moved, console-script shebangs may still
+reference the old location even after sync. Stop its kernels/processes, move that
+`.venv` aside to a backup path and create a fresh one with the frozen sync command.
+Do not reuse a moved virtual environment. Verify both package import and
+`uv run --frozen python -m pytest --version` before the required checks.
 Make targets retain the frozen lock and do not update dependency resolution.
+Use a full Git clone for tests: pin-integrity checks inspect the package ancestor
+commit. CI fetches full history; shallow local clones need that history first.
 
 ## Immutable notebook package and source identities
 
@@ -90,3 +96,18 @@ itself is not a network byte-quota sandbox. Validation bounds publication/copyin
 
 Saved notebook outputs remain historical. A successful synthetic check or local
 kernel bootstrap does not establish a clean full-data Colab execution.
+
+## Repeat the running-kernel integration proof
+
+Use a fresh disposable interpreter with the locked notebook dependencies installed,
+but without `retail-forecast` installed. The script checks this precondition. The
+verification changes its editable package installation to a temporary checkout,
+which is removed afterward; recreate that disposable environment before reuse.
+
+```bash
+uv run --frozen python scripts/verify_notebook_bootstrap.py --python /tmp/test-env/bin/python
+```
+
+This runs each actual initial cell twice against its exact pinned package revision
+in a real Jupyter kernel started before installation. It clones the local repository;
+source/dependency acquisition may need network, but it never requests Kaggle data.
