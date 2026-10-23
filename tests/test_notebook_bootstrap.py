@@ -60,5 +60,7 @@ def test_notebook_pin_contains_all_runtime_and_acquisition_changes():
             "src/retail_forecast/notebook_runtime.py",
             "src/retail_forecast/acquisition_security.py",
             "constraints/02-notebook-models.txt",
+            "constraints/03-colab.txt",
+            "constraints/04-colab-models.txt",
         ]:
             subprocess.run(["git", "cat-file", "-e", f"{revision}:{name}"], check=True)
