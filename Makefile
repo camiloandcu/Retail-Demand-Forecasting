@@ -3,26 +3,26 @@ CONFIG ?= configs/full.yaml
 .PHONY: install test lint smoke baseline train evaluate predict
 
 install:
-	uv sync --extra dev
+	uv sync --frozen --extra dev --extra notebook
 
 test:
-	uv run pytest
+	uv run --frozen pytest
 
 lint:
-	uv run ruff check .
-	uv run ruff format --check .
+	uv run --frozen ruff check .
+	uv run --frozen ruff format --check .
 
 smoke:
-	uv run retail-forecast smoke --config configs/smoke.yaml
+	uv run --frozen retail-forecast smoke --config configs/smoke.yaml
 
 baseline:
-	uv run --extra models --extra notebook retail-forecast baseline --config $(CONFIG)
+	uv run --frozen --extra models --extra notebook retail-forecast baseline --config $(CONFIG)
 
 train:
-	uv run retail-forecast train --config $(CONFIG)
+	uv run --frozen retail-forecast train --config $(CONFIG)
 
 evaluate:
-	uv run retail-forecast evaluate --config $(CONFIG)
+	uv run --frozen retail-forecast evaluate --config $(CONFIG)
 
 predict:
-	uv run retail-forecast predict --config $(CONFIG)
+	uv run --frozen retail-forecast predict --config $(CONFIG)

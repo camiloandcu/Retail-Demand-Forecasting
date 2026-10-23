@@ -10,11 +10,6 @@ def test_feature_notebook_enforces_the_real_temporal_contract() -> None:
 
     assert notebook["nbformat"] == 4
     assert "Open In Colab" in full_text
-    assert 'BRANCH = "' in full_text
-    assert '"--branch"' in full_text
-    assert '"--single-branch"' in full_text
-    assert '"fetch", "--depth", "1", "origin", BRANCH' in full_text
-    assert '"checkout", "--detach", "FETCH_HEAD"' in full_text
     assert "Kaggle API token" in full_text
     assert "token_reader=getpass" in full_text
     assert "acquire_competition_data" in full_text

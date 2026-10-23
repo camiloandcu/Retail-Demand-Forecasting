@@ -85,5 +85,8 @@ it is not presented as production-ready.
 
 ## Documentation
 
+For frozen installation, supported Python versions and immutable notebook setup,
+see the [reproducible setup guide](docs/01_reproducible_setup.md).
+
 See the [documentation index](docs/INDEX.md) for data instructions and the first
 academic report.

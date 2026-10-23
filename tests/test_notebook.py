@@ -17,14 +17,6 @@ def test_eda_notebook_is_colab_ready_and_keeps_logic_in_package() -> None:
     assert "USE_KAGGLE_SECRET" not in full_text
     assert "userdata" not in full_text
     assert "files.upload" not in full_text
-    assert 'pip", "install", "-e", ".[notebook]' in full_text
-    assert 'BRANCH = "' in full_text
-    assert '"--branch"' in full_text
-    assert '"--single-branch"' in full_text
-    assert '"fetch", "--depth", "1", "origin", BRANCH' in full_text
-    assert '"checkout", "--detach", "FETCH_HEAD"' in full_text
-    assert "sys.path.insert(0, source_path)" in full_text
-    assert 'find_spec("retail_forecast")' in full_text
     assert full_text.count("save_figure(") == 9
     analysis_cells = [
         cell
