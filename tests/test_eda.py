@@ -1,5 +1,6 @@
 """Reusable acquisition and EDA artifact tests."""
 
+import hashlib
 import json
 from pathlib import Path
 from zipfile import ZipFile
@@ -14,6 +15,7 @@ from retail_forecast.acquisition import (
     extract_competition_archive,
     find_competition_archive,
 )
+from retail_forecast.acquisition_security import AcquisitionManifest
 from retail_forecast.config import ProjectConfig
 from retail_forecast.data import FILE_COLUMNS
 from retail_forecast.eda import (
@@ -28,7 +30,12 @@ from retail_forecast.eda import (
 def test_existing_dataset_skips_network(synthetic_config: ProjectConfig) -> None:
     """Complete local inputs must make acquisition idempotent without Kaggle auth."""
 
-    result = download_competition_data(synthetic_config.paths.raw_data_dir)
+    source = synthetic_config.paths.raw_data_dir
+    manifest = AcquisitionManifest(
+        {name: (source / name).stat().st_size for name in FILE_COLUMNS},
+        {name: hashlib.sha256((source / name).read_bytes()).hexdigest() for name in FILE_COLUMNS},
+    )
+    result = download_competition_data(source, manifest=manifest)
     assert result == synthetic_config.paths.raw_data_dir
 
 
@@ -41,9 +48,16 @@ def test_archive_acquisition_extracts_only_expected_csvs(
     with ZipFile(archive_path, "w") as archive:
         for filename in FILE_COLUMNS:
             archive.write(source_dir / filename, arcname=f"nested/{filename}")
-        archive.writestr("ignored.txt", "not competition data")
+        archive.writestr("ignored.txt", "")
 
-    result = extract_competition_archive(archive_path, output_dir)
+    manifest = AcquisitionManifest(
+        {name: (source_dir / name).stat().st_size for name in FILE_COLUMNS},
+        {
+            name: hashlib.sha256((source_dir / name).read_bytes()).hexdigest()
+            for name in FILE_COLUMNS
+        },
+    )
+    result = extract_competition_archive(archive_path, output_dir, manifest=manifest)
 
     assert result == output_dir
     assert {path.name for path in output_dir.iterdir()} == set(FILE_COLUMNS)

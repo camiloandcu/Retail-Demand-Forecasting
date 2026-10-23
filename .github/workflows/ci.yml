@@ -13,15 +13,22 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        python-version: ["3.11", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
+          version: "0.12.0"
+      - name: Check lock metadata
+        run: uv lock --check
       - name: Install
         run: uv sync --extra dev --extra notebook --frozen
+      - name: Verify generated notebook constraints
+        run: uv run --frozen python scripts/export_notebook_constraints.py --check
       - name: Lint and format check
         run: make lint
       - name: Unit tests
