@@ -186,9 +186,33 @@ def test_loaded_dependency_outside_original_allowlist_requires_restart(
     )
     cleared = []
     monkeypatch.setattr(runtime, "clear_loaded_bytecode", cleared.append)
-    with pytest.raises(RuntimeError, match=f"{distribution_name}.*Restart"):
+    with pytest.raises(RuntimeError, match="Locked dependencies.*Restart"):
         runtime.bootstrap(root, revision, origin)
     assert cleared == [module_name]
+
+
+def test_all_loaded_package_caches_are_cleared_in_one_restart(checkout, monkeypatch):
+    import types
+
+    root, revision, origin = checkout
+    monkeypatch.setattr(runtime, "verify_loaded_source", lambda root: None)
+    monkeypatch.setattr(
+        runtime.importlib.metadata,
+        "packages_distributions",
+        lambda: {"traitlets": ["traitlets"], "setuptools": ["setuptools"]},
+    )
+    for name, version in (("traitlets", "5.7.1"), ("setuptools", "80.9.0")):
+        module = types.ModuleType(name)
+        module.__version__ = version
+        monkeypatch.setitem(runtime.sys.modules, name, module)
+    monkeypatch.setattr(runtime.importlib.metadata, "version", lambda name: "5.16.1")
+    cleared = []
+    monkeypatch.setattr(runtime, "clear_loaded_bytecode", cleared.append)
+
+    with pytest.raises(RuntimeError, match="Loaded dependency versions.*Restart"):
+        runtime.bootstrap(root, revision, origin)
+
+    assert sorted(cleared) == ["setuptools", "traitlets"]
 
 
 @pytest.mark.parametrize("resident,metadata", [("2026.07.22", "2026.7.22"), ("1.2", "1.2.0")])

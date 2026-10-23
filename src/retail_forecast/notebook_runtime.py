@@ -114,6 +114,7 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
     # Dependencies imported before an upgrade remain resident. Detect disagreement
     # after installation and require restart instead of running mixed versions.
     loaded = {}
+    stale_modules = set()
     distribution_map = importlib.metadata.packages_distributions()
     for name, module in tuple(sys.modules.items()):
         if "." in name:
@@ -136,17 +137,23 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
                 while version_parts and version_parts[-1] == 0:
                     version_parts.pop()
                 if resident_parts != version_parts:
-                    # Colab can retain timestamp-valid bytecode after pip has
-                    # replaced the source files. Clear every loaded module cache
-                    # for this distribution so the next kernel reads the lock.
-                    clear_loaded_bytecode(name)
-                    raise RuntimeError(f"{name} is already a different version. Restart kernel.")
+                    stale_modules.add(name)
             loaded[distribution] = (version, name)
+    if stale_modules:
+        # Colab can retain timestamp-valid bytecode after pip replaced source
+        # files. Clear every affected package before requesting one restart.
+        for name in stale_modules:
+            clear_loaded_bytecode(name)
+        raise RuntimeError("Loaded dependency versions differ. Restart kernel.")
     install(root, models=models)
+    changed_modules = set()
     for distribution, (old, name) in loaded.items():
         if old != importlib.metadata.version(distribution):
+            changed_modules.add(name)
+    if changed_modules:
+        for name in changed_modules:
             clear_loaded_bytecode(name)
-            raise RuntimeError(f"{distribution} changed during install. Restart kernel.")
+        raise RuntimeError("Locked dependencies changed during install. Restart kernel.")
     package = importlib.import_module("retail_forecast")
     source = Path(package.__file__).resolve()
     if not source.is_relative_to(root / "src"):
