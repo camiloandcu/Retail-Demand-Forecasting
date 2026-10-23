@@ -8,6 +8,7 @@ from typing import Any
 
 import pandas as pd
 
+from retail_forecast.artifacts import RunContext, write_json_artifact, write_run_artifact
 from retail_forecast.data import EXPECTED_KAGGLE_SHA256, FILE_COLUMNS, load_frames
 from retail_forecast.io_utils import write_json
 
@@ -250,23 +251,53 @@ def build_eda_summary(
 
 
 def export_eda_artifacts(
-    summary: dict[str, Any], manifest: dict[str, Any], metrics_dir: Path
+    summary: dict[str, Any],
+    manifest: dict[str, Any],
+    metrics_dir: Path,
+    *,
+    run: RunContext | None = None,
 ) -> tuple[Path, Path]:
     """Export the requested EDA summary and a standalone file manifest."""
 
     summary_path = metrics_dir / "eda_summary.json"
     manifest_path = metrics_dir / "dataset_manifest.json"
-    write_json(summary_path, {**summary, "manifest": manifest})
-    write_json(manifest_path, manifest)
+    if run is None:
+        write_json(summary_path, {**summary, "manifest": manifest})
+        write_json(manifest_path, manifest)
+    else:
+        write_json_artifact(
+            run,
+            summary_path.relative_to(run.root).as_posix(),
+            {**summary, "manifest": manifest},
+            kind="audit_manifest",
+        )
+        write_json_artifact(
+            run,
+            manifest_path.relative_to(run.root).as_posix(),
+            manifest,
+            kind="audit_manifest",
+        )
     return summary_path, manifest_path
 
 
-def save_figure(figure: Any, figures_dir: Path, filename: str) -> Path:
+def save_figure(
+    figure: Any, figures_dir: Path, filename: str, *, run: RunContext | None = None
+) -> Path:
     """Save one selected EDA figure with consistent publication settings."""
 
     if Path(filename).suffix.lower() != ".png":
         raise ValueError("EDA figures must use the PNG extension")
-    figures_dir.mkdir(parents=True, exist_ok=True)
     path = figures_dir / filename
-    figure.savefig(path, dpi=140, bbox_inches="tight", facecolor="white")
+    if run is None:
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        figure.savefig(path, dpi=140, bbox_inches="tight", facecolor="white")
+    else:
+        write_run_artifact(
+            run,
+            path.relative_to(run.root).as_posix(),
+            lambda destination: figure.savefig(
+                destination, format="png", dpi=140, bbox_inches="tight", facecolor="white"
+            ),
+            kind="figure",
+        )
     return path
