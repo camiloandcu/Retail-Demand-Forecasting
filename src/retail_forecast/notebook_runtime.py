@@ -12,6 +12,7 @@ import shutil
 import site
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 SUPPORTED_PYTHON = ((3, 10), (3, 11), (3, 12), (3, 13))
@@ -85,12 +86,40 @@ def install(root: Path, *, models: bool = False) -> None:
     lock_hash = hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest()
     if f"# uv.lock SHA256: {lock_hash}" not in profile.read_text():
         raise RuntimeError("Constraints do not match uv.lock; regenerate before publishing.")
+    profile_hash = hashlib.sha256(profile.read_bytes()).hexdigest()
+    profile_name = "models" if models else "notebook"
+    marker = (
+        Path(tempfile.gettempdir())
+        / f"retail-forecast-{profile_name}-py{sys.version_info.major}{sys.version_info.minor}.json"
+    )
     if importlib.util.find_spec("pip") is not None:
         command = [sys.executable, "-m", "pip", "install"]
+        freeze_command = [sys.executable, "-m", "pip", "freeze"]
     elif shutil.which("uv"):
         command = ["uv", "pip", "install", "--python", sys.executable]
+        freeze_command = ["uv", "pip", "freeze", "--python", sys.executable]
     else:
         raise RuntimeError("Install pip or uv in this Python runtime, then retry.")
+
+    def freeze_hash() -> str:
+        result = subprocess.run(freeze_command, capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError("Could not verify installed environment; retry setup.")
+        return hashlib.sha256(result.stdout.encode()).hexdigest()
+
+    if marker.is_file():
+        try:
+            receipt = json.loads(marker.read_text())
+        except (OSError, json.JSONDecodeError):
+            receipt = {}
+        if (
+            receipt.get("lock_sha256") == lock_hash
+            and receipt.get("profile_sha256") == profile_hash
+            and receipt.get("python") == list(sys.version_info[:2])
+            and receipt.get("freeze_sha256") == freeze_hash()
+        ):
+            return
+
     # Output is bounded and never includes environment variables or credentials.
     for arguments in (
         ["--require-hashes", "-r", str(profile)],
@@ -101,6 +130,13 @@ def install(root: Path, *, models: bool = False) -> None:
             raise RuntimeError(
                 "Locked installation failed. Check connectivity/runtime; retry setup."
             )
+    receipt = {
+        "lock_sha256": lock_hash,
+        "profile_sha256": profile_hash,
+        "python": list(sys.version_info[:2]),
+        "freeze_sha256": freeze_hash(),
+    }
+    marker.write_text(json.dumps(receipt))
     # Process newly installed editable .pth files in the already running kernel.
     for directory in site.getsitepackages():
         site.addsitedir(directory)

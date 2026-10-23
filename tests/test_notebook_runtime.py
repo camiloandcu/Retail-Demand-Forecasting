@@ -105,6 +105,38 @@ def test_install_failure_stops_before_import(tmp_path, monkeypatch):
     assert "sentinel" not in str(error.value)
 
 
+def test_install_reuses_environment_only_while_lock_and_freeze_match(tmp_path, monkeypatch):
+    import hashlib
+
+    root = tmp_path / "checkout"
+    (root / "constraints").mkdir(parents=True)
+    lock = root / "uv.lock"
+    lock.write_text("fixture lock")
+    lock_hash = hashlib.sha256(lock.read_bytes()).hexdigest()
+    (root / "constraints/01-notebook.txt").write_text(
+        f"# uv.lock SHA256: {lock_hash}\nexample==1.0\n"
+    )
+    marker_root = tmp_path / "tmp"
+    marker_root.mkdir()
+    monkeypatch.setattr(runtime.tempfile, "gettempdir", lambda: str(marker_root))
+    monkeypatch.setattr(runtime.importlib.util, "find_spec", lambda name: True)
+    monkeypatch.setattr(runtime.site, "getsitepackages", lambda: [])
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        output = "example==1.0\n" if command[-1] == "freeze" else ""
+        return subprocess.CompletedProcess(command, 0, output, "")
+
+    monkeypatch.setattr(runtime.subprocess, "run", fake_run)
+
+    runtime.install(root)
+    runtime.install(root)
+
+    assert sum(command[-1] != "freeze" for command in calls) == 2
+    assert sum(command[-1] == "freeze" for command in calls) == 2
+
+
 def test_lock_profile_mismatch_stops_before_install(tmp_path):
     (tmp_path / "constraints").mkdir()
     (tmp_path / "uv.lock").write_text("different lock")
