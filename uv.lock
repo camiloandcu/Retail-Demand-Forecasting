@@ -3313,8 +3313,6 @@ name = "retail-forecast"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "ipykernel" },
-    { name = "jupyter" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -3323,6 +3321,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+colab = [
+    { name = "kagglehub" },
+    { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "matplotlib", version = "3.11.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
 dev = [
     { name = "pytest" },
     { name = "ruff" },
@@ -3335,6 +3338,7 @@ models = [
 ]
 notebook = [
     { name = "ipykernel" },
+    { name = "jupyter" },
     { name = "kagglehub" },
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "matplotlib", version = "3.11.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -3346,11 +3350,12 @@ notebook = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ipykernel", specifier = ">=7.3.0" },
     { name = "ipykernel", marker = "extra == 'notebook'", specifier = ">=6,<8" },
-    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "jupyter", marker = "extra == 'notebook'", specifier = ">=1.1.1" },
+    { name = "kagglehub", marker = "extra == 'colab'", specifier = ">=1.0.2,<2" },
     { name = "kagglehub", marker = "extra == 'notebook'", specifier = ">=1.0.2,<2" },
     { name = "lightgbm", marker = "extra == 'models'", specifier = ">=4.6,<5" },
+    { name = "matplotlib", marker = "extra == 'colab'", specifier = ">=3.8,<4" },
     { name = "matplotlib", marker = "extra == 'notebook'", specifier = ">=3.8,<4" },
     { name = "mlflow", marker = "extra == 'models'", specifier = ">=3.16,<4" },
     { name = "nbclient", marker = "extra == 'notebook'", specifier = ">=0.10,<1" },
@@ -3364,7 +3369,7 @@ requires-dist = [
     { name = "setuptools", marker = "extra == 'notebook'", specifier = ">=69" },
     { name = "wheel", marker = "extra == 'notebook'", specifier = ">=0.45" },
 ]
-provides-extras = ["dev", "notebook", "models"]
+provides-extras = ["dev", "notebook", "colab", "models"]
 
 [[package]]
 name = "rfc3339-validator"

@@ -11,6 +11,8 @@ UV_VERSION = "0.12.0"
 PROFILES = {
     "01-notebook.txt": ("dev", "notebook"),
     "02-notebook-models.txt": ("dev", "notebook", "models"),
+    "03-colab.txt": ("colab",),
+    "04-colab-models.txt": ("colab", "models"),
 }
 
 

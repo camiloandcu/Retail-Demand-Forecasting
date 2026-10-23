@@ -80,17 +80,41 @@ def clear_loaded_bytecode(package: str) -> None:
                 ) from None
 
 
-def install(root: Path, *, models: bool = False) -> None:
+def selected_profile(root: Path, *, models: bool = False, colab: bool = False) -> Path:
+    """Select the locked profile without Colab's managed notebook packages."""
+    if colab:
+        filename = "04-colab-models.txt" if models else "03-colab.txt"
+    else:
+        filename = "02-notebook-models.txt" if models else "01-notebook.txt"
+    return root / "constraints" / filename
+
+
+def profile_name(*, models: bool, colab: bool) -> str:
+    if colab:
+        return "colab-models" if models else "colab"
+    return "models" if models else "notebook"
+
+
+def profile_distributions(profile: Path) -> set[str]:
+    """Read exported exact pins so kernel checks cover only installed packages."""
+    return {
+        re.sub(r"[-_.]+", "-", match.group(1)).lower()
+        for line in profile.read_text().splitlines()
+        if (match := re.match(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==", line))
+    }
+
+
+def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
     """Install hashed dependencies into this interpreter, then the pinned project."""
-    profile = root / "constraints" / ("02-notebook-models.txt" if models else "01-notebook.txt")
+    profile = selected_profile(root, models=models, colab=colab)
     lock_hash = hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest()
     if f"# uv.lock SHA256: {lock_hash}" not in profile.read_text():
         raise RuntimeError("Constraints do not match uv.lock; regenerate before publishing.")
     profile_hash = hashlib.sha256(profile.read_bytes()).hexdigest()
-    profile_name = "models" if models else "notebook"
+    name = profile_name(models=models, colab=colab)
     marker = (
         Path(tempfile.gettempdir())
-        / f"retail-forecast-{profile_name}-py{sys.version_info.major}{sys.version_info.minor}.json"
+        / f"retail-forecast-{name}-py{sys.version_info.major}{sys.version_info.minor}.json"
     )
     if importlib.util.find_spec("pip") is not None:
         command = [sys.executable, "-m", "pip", "install"]
@@ -143,10 +167,14 @@ def install(root: Path, *, models: bool = False) -> None:
     importlib.invalidate_caches()
 
 
-def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -> dict:
+def bootstrap(
+    root: Path, revision: str, origin: str, *, models: bool = False, colab: bool = False
+) -> dict:
     """Validate, install and report identities; refuse mixed-source kernel state."""
     root = validate_checkout(root, revision, origin)
     verify_loaded_source(root)
+    selected = selected_profile(root, models=models, colab=colab)
+    installable = profile_distributions(selected)
     # Dependencies imported before an upgrade remain resident. Detect disagreement
     # after installation and require restart instead of running mixed versions.
     loaded = {}
@@ -156,6 +184,8 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
         if "." in name:
             continue
         for distribution in distribution_map.get(name, []):
+            if re.sub(r"[-_.]+", "-", distribution).lower() not in installable:
+                continue
             version = importlib.metadata.version(distribution)
             resident = getattr(module, "__version__", None)
             # Numeric module versions can retain zero padding removed from wheel
@@ -181,7 +211,7 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
         for name in stale_modules:
             clear_loaded_bytecode(name)
         raise RuntimeError("Loaded dependency versions differ. Restart kernel.")
-    install(root, models=models)
+    install(root, models=models, colab=colab)
     changed_modules = set()
     for distribution, (old, name) in loaded.items():
         if old != importlib.metadata.version(distribution):
@@ -204,7 +234,7 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
         "code_revision": git(root, "rev-parse", "HEAD"),
         "package_source": str(source),
         "lock_sha256": hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest(),
-        "dependency_profile": "models" if models else "notebook",
+        "dependency_profile": profile_name(models=models, colab=colab),
         "installer": (
             f"pip {importlib.metadata.version('pip')}"
             if importlib.util.find_spec("pip") is not None
@@ -214,8 +244,32 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
         ),
         "packages": {
             name: importlib.metadata.version(name)
-            for name in ("retail-forecast", "numpy", "pandas", "ipykernel", "setuptools")
+            for name in ("retail-forecast", "numpy", "pandas")
+            if any(
+                re.sub(r"[-_.]+", "-", candidate).lower() == re.sub(r"[-_.]+", "-", name).lower()
+                for candidates in distribution_map.values()
+                for candidate in candidates
+            )
         },
     }
+    if colab:
+        report["colab_platform_packages"] = {
+            distribution: {
+                "installed": importlib.metadata.version(distribution),
+                "loaded": {
+                    name: getattr(module, "__version__", None)
+                    for name, module in sys.modules.items()
+                    if name.split(".", 1)[0] in distribution_map
+                    and distribution in distribution_map.get(name.split(".", 1)[0], [])
+                },
+            }
+            for distribution in ("ipykernel", "jupyter", "setuptools", "traitlets")
+            if any(
+                re.sub(r"[-_.]+", "-", candidate).lower()
+                == re.sub(r"[-_.]+", "-", distribution).lower()
+                for distributions in distribution_map.values()
+                for candidate in distributions
+            )
+        }
     print(json.dumps(report, indent=2))
     return report

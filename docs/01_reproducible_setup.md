@@ -63,11 +63,14 @@ It processes the installed editable metadata and checks both distribution identi
 and `retail_forecast.__file__`. It reports Python, package versions, code revision,
 lock hash and source path. Installation failures stop before data or computation.
 
-Profiles `constraints/01-notebook.txt` and `02-notebook-models.txt` are generated
-from `uv.lock`, including runtime markers, artifact hashes and pinned build tooling.
-They are dependency requirements files, despite the directory name: install with
-`--require-hashes -r`, not pip's `-c` option. Regenerate/check after a reviewed lock
-change using uv 0.12.0:
+Profiles `constraints/01-notebook.txt` and `02-notebook-models.txt` are for local
+Jupyter and include its toolchain. Colab selects `03-colab.txt` or
+`04-colab-models.txt`; these lock project runtime dependencies and leave Colab's
+managed Jupyter/kernel/build packages untouched. The bootstrap reports those
+platform package versions separately. All four profiles are generated from
+`uv.lock`, including runtime markers and artifact hashes. They are dependency
+requirements files, despite the directory name: install with `--require-hashes -r`,
+not pip's `-c` option. Regenerate/check after a reviewed lock change using uv 0.12.0:
 
 ```bash
 python scripts/export_notebook_constraints.py

@@ -1,6 +1,6 @@
 # Generated; do not edit. Regenerate: python scripts/export_notebook_constraints.py
 # Generator: uv 0.12.0; supported Python: >=3.10,<3.14
-# uv.lock SHA256: 8f1d0c3ec312e16eaed8a1606f5ab0c0a094f4f13f78e067a23bf58b08e61556
+# uv.lock SHA256: cc8a5e9f1a3d78a1d327f784e6470448c32c12aa86317c67ae06229ce40770e5
 # Export command: uv export --frozen --no-emit-project --no-header --no-annotate --extra dev --extra notebook --extra models
 # Markers select the locked dependency fork for the active interpreter.
 # Install dependencies with --require-hashes, then project with --no-deps --no-build-isolation.

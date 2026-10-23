@@ -23,10 +23,22 @@ def checkout(tmp_path):
     command(root, "config", "user.email", "test@example.invalid")
     command(root, "config", "user.name", "Test")
     command(root, "remote", "add", "origin", "https://example.invalid/repo.git")
-    for name in ("pyproject.toml", "uv.lock", "src/retail_forecast/notebook_runtime.py"):
+    for name in (
+        "pyproject.toml",
+        "uv.lock",
+        "src/retail_forecast/notebook_runtime.py",
+        "constraints/01-notebook.txt",
+        "constraints/03-colab.txt",
+    ):
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("fixture")
+        path.write_text(
+            "# uv.lock SHA256: fixture\nexample==1.0\n"
+            "PyYAML==6.0.1\nipykernel==6.0.1\ntraitlets==5.16.1\n"
+            "setuptools==84.2.1\n"
+            if name in {"constraints/01-notebook.txt", "constraints/03-colab.txt"}
+            else "fixture"
+        )
     command(root, "add", ".")
     command(root, "commit", "-qm", "fixture")
     return root, command(root, "rev-parse", "HEAD"), "https://example.invalid/repo.git"
@@ -143,6 +155,73 @@ def test_lock_profile_mismatch_stops_before_install(tmp_path):
     (tmp_path / "constraints/01-notebook.txt").write_text("old constraints")
     with pytest.raises(RuntimeError, match="Constraints"):
         runtime.install(tmp_path)
+
+
+def test_colab_profiles_leave_managed_notebook_packages_to_runtime():
+    root = Path.cwd()
+    for models, expected in (
+        (False, {"numpy", "pandas", "pyyaml", "kagglehub", "matplotlib"}),
+        (
+            True,
+            {
+                "numpy",
+                "pandas",
+                "pyyaml",
+                "kagglehub",
+                "matplotlib",
+                "lightgbm",
+                "mlflow",
+                "scikit-learn",
+            },
+        ),
+    ):
+        profile = runtime.selected_profile(root, models=models, colab=True)
+        packages = runtime.profile_distributions(profile)
+        assert expected <= packages
+        assert not packages.intersection(
+            {"ipykernel", "jupyter", "traitlets", "setuptools", "wheel", "pytest", "ruff"}
+        )
+
+
+def test_colab_report_includes_installed_managed_packages_without_requiring_all(
+    checkout, monkeypatch
+):
+    import types
+
+    root, revision, origin = checkout
+    distribution_map = {"yaml": ["PyYAML"], "traitlets": ["traitlets"]}
+    monkeypatch.setattr(runtime, "verify_loaded_source", lambda root: None)
+    monkeypatch.setattr(
+        runtime.importlib.metadata,
+        "packages_distributions",
+        lambda: distribution_map,
+    )
+    monkeypatch.setattr(
+        runtime.importlib.metadata,
+        "version",
+        lambda name: {"PyYAML": "6.0.1", "traitlets": "5.16.1", "pip": "26.0"}.get(name, "1.0"),
+    )
+    monkeypatch.setattr(runtime, "install", lambda *args, **kwargs: None)
+    monkeypatch.setitem(runtime.sys.modules, "yaml", types.ModuleType("yaml"))
+    loaded_traitlets = types.ModuleType("traitlets")
+    loaded_traitlets.__version__ = "5.16.1"
+    monkeypatch.setitem(runtime.sys.modules, "traitlets", loaded_traitlets)
+
+    class Package:
+        __file__ = str(root / "src/retail_forecast/__init__.py")
+
+    monkeypatch.setattr(runtime.importlib, "import_module", lambda name: Package)
+    monkeypatch.setattr(
+        runtime.importlib.metadata,
+        "distribution",
+        lambda name: types.SimpleNamespace(
+            read_text=lambda filename: json.dumps({"url": root.as_uri()})
+        ),
+    )
+    report = runtime.bootstrap(root, revision, origin, colab=True)
+    assert report["dependency_profile"] == "colab"
+    assert set(report["colab_platform_packages"]) == {"traitlets"}
+    assert report["colab_platform_packages"]["traitlets"]["installed"] == "5.16.1"
 
 
 def test_pinned_revision_survives_origin_advance(checkout, tmp_path):
