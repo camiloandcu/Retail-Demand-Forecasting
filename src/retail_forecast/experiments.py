@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
-import os
-import platform
 import resource
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from retail_forecast.artifacts import (
+    RunContext,
+    ensure_running,
+    write_json_artifact,
+    write_run_artifact,
+)
 from retail_forecast.baseline import (
     fit_seasonal_average,
     fit_seasonal_naive,
@@ -22,7 +24,7 @@ from retail_forecast.baseline import (
     predict_seasonal_naive,
 )
 from retail_forecast.config import ProjectConfig
-from retail_forecast.data import FILE_COLUMNS
+from retail_forecast.data import load_frames
 from retail_forecast.eda import sha256_file
 from retail_forecast.features import (
     FeatureBatch,
@@ -31,9 +33,10 @@ from retail_forecast.features import (
     fit_preprocessor,
     transform_features,
 )
-from retail_forecast.io_utils import write_json
 from retail_forecast.metrics import clip_nonnegative_predictions, rmsle
+from retail_forecast.provenance import verify_inputs
 from retail_forecast.splits import RollingOriginFold, make_rolling_origin_folds
+from retail_forecast.tracking_runtime import log_baseline_tracking
 from retail_forecast.versions import capture_versions
 
 MODEL_IDS = ("zero", "seasonal_naive_7d", "seasonal_average_4w", "lightgbm_global")
@@ -181,22 +184,38 @@ def _model_matrix(transformed: pd.DataFrame) -> pd.DataFrame:
 
 def run_baseline_experiments(
     config: ProjectConfig,
-    frames: dict[str, pd.DataFrame],
-    metrics_dir: Path,
-    figures_dir: Path,
-    mlflow_dir: Path,
+    *,
+    run: RunContext,
+    tracking: bool = True,
 ) -> dict[str, Any]:
     """Run four pre-registered configurations on identical rolling-origin folds."""
 
+    ensure_running(run)
+    if run.manifest["kind"] != "baseline" or run.snapshot is None or run.input_dir is None:
+        raise ValueError("Baseline requires its own run with captured input identity")
+    if replace(config, paths=run.config.paths) != run.config:
+        raise ValueError("Baseline config differs from allocated run identity")
     if len(MODEL_IDS) > 10 or config.baseline.tree_model != "lightgbm":
         raise ValueError("The experiment budget or single-tree contract was violated")
     try:
         import lightgbm as lgb
         import matplotlib.pyplot as plt
-        import mlflow
     except ImportError as error:  # pragma: no cover - optional dependency boundary
         raise RuntimeError("Install the 'models' and 'notebook' extras") from error
 
+    metrics_dir = run.root / "metrics"
+    figures_dir = run.root / "figures" / "baselines"
+
+    def write(relative: str, writer: Any, kind: str) -> Path:
+        write_run_artifact(run, relative, writer, kind=kind)
+        return run.root / relative
+
+    # The run's captured input root is the sole source of scientific frames.
+    # Accepting caller-owned dataframes would let modified data borrow unrelated
+    # disk snapshot provenance. Verify before and after loading to detect changes.
+    verify_inputs(run.snapshot, run.input_dir)
+    frames = load_frames(run.input_dir)
+    verify_inputs(run.snapshot, run.input_dir)
     train = frames["train.csv"].copy()
     train["date"] = pd.to_datetime(train["date"], errors="raise")
     feature_frames = dict(frames)
@@ -318,9 +337,11 @@ def run_baseline_experiments(
         predictions[TREE_MODEL_ID] = clip_nonnegative_predictions(raw_tree)
         durations[TREE_MODEL_ID] = time.perf_counter() - tree_started
         memory_by_model[TREE_MODEL_ID] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        model_path = config.paths.artifacts_dir / "models" / f"lightgbm_{fold.name}.txt"
-        model_path.parent.mkdir(parents=True, exist_ok=True)
-        tree.booster_.save_model(str(model_path))
+        model_path = write(
+            f"models/lightgbm_{fold.name}.txt",
+            lambda path, tree=tree: tree.booster_.save_model(str(path)),
+            "native_model",
+        )
         model_paths.append(model_path)
 
         for model_id in MODEL_IDS:
@@ -357,13 +378,16 @@ def run_baseline_experiments(
 
     oof = pd.concat(oof_parts, ignore_index=True)
     results = segmented_rmsle(oof)
-    metrics_dir.mkdir(parents=True, exist_ok=True)
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    results_path = metrics_dir / "baseline_results.csv"
-    results.to_csv(results_path, index=False)
-    oof_path = config.paths.artifacts_dir / "predictions" / "baseline_oof.csv.gz"
-    oof_path.parent.mkdir(parents=True, exist_ok=True)
-    oof.to_csv(oof_path, index=False, compression="gzip")
+    results_path = write(
+        "metrics/baseline_results.csv",
+        lambda path: results.to_csv(path, index=False),
+        "segmented_metrics",
+    )
+    oof_path = write(
+        "predictions/baseline_oof.csv.gz",
+        lambda path: oof.to_csv(path, index=False, compression="gzip"),
+        "oof",
+    )
 
     costs = pd.DataFrame(cost_records)
     global_scores = results.loc[results["scope"].eq("global"), ["model_id", "rmsle"]]
@@ -377,8 +401,11 @@ def run_baseline_experiments(
         .merge(global_scores, on="model_id", validate="one_to_one")
         .sort_values("rmsle")
     )
-    cost_path = metrics_dir / "baseline_cost_quality.csv"
-    cost_quality.to_csv(cost_path, index=False)
+    cost_path = write(
+        "metrics/baseline_cost_quality.csv",
+        lambda path: cost_quality.to_csv(path, index=False),
+        "costs",
+    )
 
     business_scores = global_scores.loc[global_scores["model_id"].isin(BUSINESS_BASELINE_IDS)]
     business_champion = business_scores.sort_values("rmsle").iloc[0]
@@ -404,7 +431,7 @@ def run_baseline_experiments(
         ],
     }
     champion_path = metrics_dir / "baseline_champion.json"
-    write_json(champion_path, champion)
+    write_json_artifact(run, "metrics/baseline_champion.json", champion, kind="selection")
 
     global_plot = global_scores.sort_values("rmsle")
     figure, axis = plt.subplots(figsize=(9, 4.5))
@@ -414,7 +441,11 @@ def run_baseline_experiments(
     axis.tick_params(axis="x", rotation=20)
     figure.tight_layout()
     global_figure = figures_dir / "01_global_rmsle.png"
-    figure.savefig(global_figure, dpi=140)
+    write(
+        "figures/baselines/01_global_rmsle.png",
+        lambda path: figure.savefig(path, dpi=140),
+        "figure",
+    )
     plt.close(figure)
 
     horizon = results.loc[results["scope"].eq("horizon")].copy()
@@ -426,104 +457,57 @@ def run_baseline_experiments(
     axis.legend()
     figure.tight_layout()
     horizon_figure = figures_dir / "02_horizon_rmsle.png"
-    figure.savefig(horizon_figure, dpi=140)
+    write(
+        "figures/baselines/02_horizon_rmsle.png",
+        lambda path: figure.savefig(path, dpi=140),
+        "figure",
+    )
     plt.close(figure)
 
-    mlflow_dir.mkdir(parents=True, exist_ok=True)
-    mlflow_database_path = (mlflow_dir / "mlflow.db").resolve()
-    mlflow.set_tracking_uri(f"sqlite:///{mlflow_database_path}")
-    mlflow.set_experiment("retail-demand-non-neural-baselines")
     runtime = capture_versions()
-    hardware_params = {
-        "runtime_platform": platform.platform(),
-        "runtime_cpu_count": os.cpu_count() or "unknown",
-    }
-    baseline_params = {f"baseline_{key}": value for key, value in asdict(config.baseline).items()}
-    for model_id in MODEL_IDS:
-        model_scores = results.loc[results["model_id"].eq(model_id)]
-        model_costs = costs.loc[costs["model_id"].eq(model_id)]
-        with mlflow.start_run(run_name=f"{config.mode}-{model_id}"):
-            mlflow.set_tags(
-                {
-                    "mode": config.mode,
-                    "model_family": "tree" if model_id == TREE_MODEL_ID else "baseline",
-                    "production_ready": "false",
-                }
-            )
-            mlflow.log_params(
-                {
-                    "model_id": model_id,
-                    "fold_count": len(folds),
-                    "horizon": config.forecast.horizon,
-                    "seed": config.runtime.seed,
-                    **hardware_params,
-                    **baseline_params,
-                    **(_lightgbm_params(config) if model_id == TREE_MODEL_ID else {}),
-                }
-            )
-            mlflow.log_metric(
-                "rmsle_global",
-                float(model_scores.loc[model_scores["scope"].eq("global"), "rmsle"].item()),
-            )
-            for row in model_scores.loc[model_scores["scope"].eq("fold")].itertuples():
-                mlflow.log_metric(f"rmsle_{row.segment}", float(row.rmsle))
-            mlflow.log_metric("duration_seconds", float(model_costs["duration_seconds"].sum()))
-            mlflow.log_metric(
-                "process_max_rss_kib", float(model_costs["process_max_rss_kib"].max())
-            )
-            mlflow.log_dict(runtime, "runtime_versions.json")
-            mlflow.log_artifact(str(results_path))
-            mlflow.log_artifact(str(cost_path))
-            mlflow.log_artifact(str(champion_path))
-            mlflow.log_artifact(str(global_figure), artifact_path="figures")
-            mlflow.log_artifact(str(horizon_figure), artifact_path="figures")
-            if model_id == TREE_MODEL_ID:
-                for model_path in model_paths:
-                    mlflow.log_artifact(str(model_path), artifact_path="models")
-
-    oof_digest = hashlib.sha256(oof_path.read_bytes()).hexdigest()
-    input_files = {
-        filename: {
-            "bytes": (config.paths.raw_data_dir / filename).stat().st_size,
-            "sha256": sha256_file(config.paths.raw_data_dir / filename),
-        }
-        for filename in FILE_COLUMNS
-    }
+    tracking_status = log_baseline_tracking(
+        run,
+        enabled=tracking,
+        model_ids=MODEL_IDS,
+        tree_model_id=TREE_MODEL_ID,
+        config=config,
+        folds=len(folds),
+        results=results,
+        costs=costs,
+        paths=[results_path, cost_path, champion_path, global_figure, horizon_figure],
+        models=model_paths,
+        tree_parameters=_lightgbm_params(config),
+        versions=runtime,
+    )
     manifest = {
+        "run_id": run.run_id,
         "mode": config.mode,
         "source": config.data.source,
+        "availability_policy": "competition_v1",
         "models": list(MODEL_IDS),
         "tree_selected_before_training": "lightgbm",
         "folds": [fold.to_dict() for fold in folds],
         "training_origins_by_fold": training_origins_by_fold,
         "skipped_training_origins_by_fold": skipped_training_origins_by_fold,
         "feature_contract": feature_contract,
-        "input_files": input_files,
-        "config_path": str(config.config_path),
-        "config_sha256": sha256_file(config.config_path),
+        "snapshot_id": run.manifest["snapshot_id"],
+        "config_sha256": run.manifest["config_sha256"],
         "versions": runtime,
-        "results_path": str(results_path),
-        "cost_quality_path": str(cost_path),
-        "champion_path": str(champion_path),
-        "oof_path": str(oof_path),
+        "results_path": str(results_path.relative_to(run.root)),
+        "cost_quality_path": str(cost_path.relative_to(run.root)),
+        "champion_path": str(champion_path.relative_to(run.root)),
+        "oof_path": str(oof_path.relative_to(run.root)),
         "oof_rows": len(oof),
         "oof_bytes": oof_path.stat().st_size,
-        "oof_sha256": oof_digest,
+        "oof_sha256": sha256_file(oof_path),
         "oof_git_limit_mb": config.baseline.oof_git_limit_mb,
         "oof_should_be_committed": False,
-        "mlflow_tracking_uri": mlflow.get_tracking_uri(),
-        "mlflow_database_path": str(mlflow_database_path),
-        "hardware": {
-            "platform": platform.platform(),
-            "cpu_count": os.cpu_count(),
-            "process_max_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        },
+        "tracking": tracking_status,
+        "hardware": run.manifest["hardware"],
         "config": asdict(config.baseline),
     }
-    canonical = json.dumps(manifest, sort_keys=True, separators=(",", ":"), default=str)
-    manifest["sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
     manifest_path = metrics_dir / "baseline_manifest.json"
-    write_json(manifest_path, manifest)
+    write_json_artifact(run, "metrics/baseline_manifest.json", manifest, kind="experiment_summary")
     return {
         "results": results,
         "cost_quality": cost_quality,
