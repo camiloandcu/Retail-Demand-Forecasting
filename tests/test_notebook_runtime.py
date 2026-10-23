@@ -184,8 +184,11 @@ def test_loaded_dependency_outside_original_allowlist_requires_restart(
     monkeypatch.setattr(
         runtime, "install", lambda *args, **kwargs: installed.update(version="6.0.3")
     )
+    cleared = []
+    monkeypatch.setattr(runtime, "clear_loaded_bytecode", cleared.append)
     with pytest.raises(RuntimeError, match=f"{distribution_name}.*Restart"):
         runtime.bootstrap(root, revision, origin)
+    assert cleared == [module_name]
 
 
 @pytest.mark.parametrize("resident,metadata", [("2026.07.22", "2026.7.22"), ("1.2", "1.2.0")])

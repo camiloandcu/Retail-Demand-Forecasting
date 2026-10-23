@@ -141,10 +141,11 @@ def bootstrap(root: Path, revision: str, origin: str, *, models: bool = False) -
                     # for this distribution so the next kernel reads the lock.
                     clear_loaded_bytecode(name)
                     raise RuntimeError(f"{name} is already a different version. Restart kernel.")
-            loaded[distribution] = version
+            loaded[distribution] = (version, name)
     install(root, models=models)
-    for distribution, old in loaded.items():
+    for distribution, (old, name) in loaded.items():
         if old != importlib.metadata.version(distribution):
+            clear_loaded_bytecode(name)
             raise RuntimeError(f"{distribution} changed during install. Restart kernel.")
     package = importlib.import_module("retail_forecast")
     source = Path(package.__file__).resolve()
