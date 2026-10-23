@@ -1,9 +1,20 @@
 # Retail Demand Forecasting
 
-A reproducible, multi-horizon forecasting project built around Kaggle's
-Store Sales dataset. The final pipeline will forecast 16
-daily sales values for every store-family series and evaluate them with
-rolling-origin validation.
+A multi-horizon sales forecasting study built around Kaggle's Store Sales dataset.
+It evaluates 16-day forecasts for 1,782 store-family series using rolling-origin
+validation. The intended use is to support retail planning; inventory savings and
+unconstrained demand are not measured by this dataset.
+
+The saved competition benchmark gives LightGBM a pooled OOF RMSLE of **0.3973**,
+compared with **0.4684** for the four-week seasonal average. These results use
+competition-supplied covariates, including future oil values; they do not establish
+operational performance. See the saved results and discussion in
+[Notebook 03](03_non_neural_baselines.ipynb).
+
+Three notebooks and non-neural experiments are implemented. Recurrent training,
+transfer learning, the final academic report/video and the analyst demo remain
+pending. The current CLI training/prediction commands use seasonal naive; they do
+not yet serve the experimental LightGBM model.
 
 The repository is intentionally code-first. Notebooks will explain and
 orchestrate the workflow, while metrics, data contracts, feature engineering,
@@ -60,7 +71,7 @@ These commands default to `configs/full.yaml`. Override the configuration with
 
 ## Repository contract
 
-- The five numbered notebooks will live in the repository root for the academic
+- Numbered notebooks live in the repository root for the academic
   submission.
 - Notebooks import `retail_forecast`; they do not reimplement metrics, features,
   training, or inference.
@@ -71,3 +82,8 @@ These commands default to `configs/full.yaml`. Override the configuration with
 
 This project is designed to be reproducible, tested, and production-oriented;
 it is not presented as production-ready.
+
+## Documentation
+
+See the [documentation index](docs/INDEX.md) for data instructions and the first
+academic report.
