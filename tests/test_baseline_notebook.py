@@ -10,7 +10,10 @@ def test_baseline_notebook_keeps_the_experiment_contract() -> None:
 
     assert "Open In Colab" in full_text
     assert "run_baseline_experiments" in full_text
-    assert "artifacts/metrics/baseline_results.csv" in full_text
+    assert "metrics/baseline_results.csv" in full_text
+    assert "run_context" in full_text
+    assert "finish_run(run_context)" in full_text
+    assert "read_completed_run(" in full_text
     assert "LightGBM is the only tree model" in full_text
     assert "at least 2% below LightGBM" in full_text
     assert "LSTM" not in full_text
