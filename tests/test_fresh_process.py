@@ -270,3 +270,39 @@ def test_capsule_identity_is_never_overwritten(capsule, monkeypatch):
         )
     assert {p: p.read_bytes() for p in before} == before
     assert [p.name for p in destination.iterdir()] == [first["capsule_id"]]
+
+
+@pytest.mark.parametrize("extra", ["fifo", "empty_dir"])
+def test_capsule_rejects_special_or_empty_undeclared_entries(capsule, extra):
+    from retail_forecast.capsules import verify_inference_capsule
+
+    root, _, _ = capsule
+    if extra == "fifo":
+        os.mkfifo(root / "bundle/state/pipe")
+    else:
+        (root / "bundle/unused").mkdir()
+    with pytest.raises(ValueError, match="undeclared"):
+        verify_inference_capsule(root)
+
+
+def test_capsule_metadata_must_match_its_bundle(capsule):
+    from retail_forecast.bundles import BundleError, BundleRef, load_bundle
+    from retail_forecast.io_utils import canonical_json
+    from retail_forecast.provenance import digest_json
+
+    root, _, _ = capsule
+    manifest = json.loads((root / "capsule.json").read_text())
+    manifest["availability_policy"] = "asof_v1"
+    manifest.pop("capsule_id")
+    manifest["capsule_id"] = digest_json(manifest)
+    data = canonical_json(manifest)
+    (root / "capsule.json").write_bytes(data)
+    marker = json.loads((root / "CAPSULE_COMPLETE.json").read_text())
+    marker["capsule_id"] = manifest["capsule_id"]
+    import hashlib
+
+    marker["capsule_sha256"] = hashlib.sha256(data).hexdigest()
+    (root / "CAPSULE_COMPLETE.json").write_bytes(canonical_json(marker))
+    renamed = root.rename(root.with_name(manifest["capsule_id"]))
+    with pytest.raises(BundleError, match="BUNDLE_INVALID"):
+        load_bundle(BundleRef("capsule", renamed, "bundle"), expected_policy="asof_v1")

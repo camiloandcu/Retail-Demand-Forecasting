@@ -213,18 +213,38 @@ def test_unsupported_versions_and_unsafe_paths_fail_validation(synthetic_config,
         validate_bundle_manifest(tampered)
 
 
-def test_symlinked_state_escaping_the_bundle_is_not_followed(synthetic_config, tmp_path):
+def test_symlinked_state_escaping_the_bundle_is_not_followed(
+    synthetic_config, tmp_path, monkeypatch
+):
+    import builtins
+    import io
+    import os
+
     trained = train(synthetic_config, model_id=SEASONAL)
     state = Path(trained["bundle_dir"]) / "state/seasonal.json"
     outside = tmp_path / "outside.json"
     outside.write_bytes(state.read_bytes())
     state.unlink()
     state.symlink_to(outside)
-    before = outside.stat().st_atime_ns
+    opened: list[str] = []
+    real_os_open, real_open, real_io_open = os.open, builtins.open, io.open
+
+    def record(real):
+        def wrapper(file, *args, **kwargs):
+            if isinstance(file, (str, os.PathLike)):
+                opened.append(os.path.realpath(file))
+            return real(file, *args, **kwargs)
+
+        return wrapper
+
+    monkeypatch.setattr(os, "open", record(real_os_open))
+    monkeypatch.setattr(builtins, "open", record(real_open))
+    monkeypatch.setattr(io, "open", record(real_io_open))
     with pytest.raises(BundleError, match="BUNDLE_INVALID"):
         _load(trained)
-    assert outside.read_bytes()  # untouched and still present
-    assert outside.stat().st_atime_ns >= before
+    monkeypatch.undo()
+    assert str(outside.resolve()) not in opened  # the outside target was never opened
+    assert outside.read_bytes()
 
 
 def test_policy_mismatch_fails_before_native_prediction(synthetic_config, monkeypatch):
@@ -427,3 +447,39 @@ def test_research_partial_tables_are_not_complete_records():
     with pytest.raises(LineageIneligibleError) as error:
         require_complete_lineage(research)
     assert {"bundle_id", "training_run_id", "prediction_run_id"} <= set(error.value.missing)
+
+
+# Independent-review regressions ---------------------------------------------------------
+
+
+@pytest.mark.parametrize("model_id", [pytest.param(LIGHTGBM, marks=pytest.mark.models), SEASONAL])
+def test_known_series_without_history_is_unsupported(synthetic_config, model_id):
+    if model_id == LIGHTGBM:
+        pytest.importorskip("lightgbm")
+    loaded = _load(train(synthetic_config, model_id=model_id))
+    forecast_request = _request(synthetic_config)
+    store, family = forecast_request.series_keys[0]
+    history = forecast_request.sales_history
+    keep = ~((history["store_nbr"] == store) & (history["family"] == family))
+    with pytest.raises(ForecastRequestError, match="HISTORY_INSUFFICIENT"):
+        predict_bundle(
+            loaded, replace(forecast_request, sales_history=history.loc[keep]), context=_context()
+        )
+
+
+def test_seasonal_bundle_refuses_origins_after_its_cutoff(synthetic_config):
+    import datetime as dt
+
+    trained = train(synthetic_config, model_id=SEASONAL, origin=dt.date(2020, 2, 17))
+    with pytest.raises(BundleError, match="ORIGIN_UNSUPPORTED"):
+        predict(synthetic_config, bundle=trained["bundle"])
+
+
+@pytest.mark.models
+def test_lightgbm_bundle_serves_later_origins_from_request_history(synthetic_config):
+    import datetime as dt
+
+    pytest.importorskip("lightgbm")
+    trained = train(synthetic_config, model_id=LIGHTGBM, origin=dt.date(2020, 2, 17))
+    result = predict(synthetic_config, bundle=trained["bundle"])
+    assert len(pd.read_csv(result["forecast"])) == 64

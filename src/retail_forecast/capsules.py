@@ -15,7 +15,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final
 
-from retail_forecast.artifacts import _trusted_path, read_completed_run, safe_path
+from retail_forecast.artifacts import (
+    _trusted_path,
+    read_completed_run,
+    read_regular_bytes,
+    safe_path,
+    tree_matches,
+)
 from retail_forecast.io_utils import canonical_json, parse_json_bytes
 from retail_forecast.provenance import code_identity, digest_json
 
@@ -67,12 +73,12 @@ def export_inference_capsule(
     }
     files: dict[str, tuple[bytes, str]] = {}
     for name, sha in sorted(closure.items()):
-        data = safe_path(bundle_dir, name, regular=True).read_bytes()
+        data = read_regular_bytes(bundle_dir, name)
         if _sha(data) != sha:
             raise ValueError("Bundle file changed during export")
         files[f"bundle/{name}"] = (data, "bundle")
-    run_bytes = safe_path(source, "run.json", regular=True).read_bytes()
-    complete_bytes = safe_path(source, "COMPLETE.json", regular=True).read_bytes()
+    run_bytes = read_regular_bytes(source, "run.json")
+    complete_bytes = read_regular_bytes(source, "COMPLETE.json")
     files["provenance/source-run.json"] = (run_bytes, "witness_run")
     files["provenance/source-complete.json"] = (complete_bytes, "witness_completion")
     capsule = {
@@ -134,8 +140,8 @@ def verify_inference_capsule(capsule_root: Path, *, staging: bool = False) -> di
     root = _trusted_path(Path(capsule_root))
     if not root.is_dir():
         raise FileNotFoundError("Capsule root is unavailable")
-    marker = parse_json_bytes(safe_path(root, MARKER_NAME, regular=True).read_bytes())
-    capsule_bytes = safe_path(root, CAPSULE_NAME, regular=True).read_bytes()
+    marker = parse_json_bytes(read_regular_bytes(root, MARKER_NAME))
+    capsule_bytes = read_regular_bytes(root, CAPSULE_NAME)
     if (
         not isinstance(marker, dict)
         or set(marker) != {"schema_version", "capsule_id", "state", "capsule_sha256"}
@@ -162,15 +168,12 @@ def verify_inference_capsule(capsule_root: Path, *, staging: bool = False) -> di
     for entry in capsule["files"]:
         if not isinstance(entry, dict) or set(entry) != {"path", "bytes", "sha256", "kind"}:
             raise ValueError("Invalid capsule file entry")
-        data = safe_path(root, entry["path"], regular=True).read_bytes()
+        data = read_regular_bytes(root, entry["path"])
         if len(data) != entry["bytes"] or _sha(data) != entry["sha256"]:
             raise ValueError("Capsule file failed integrity verification")
         declared[entry["path"]] = data
-    present = {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()}
-    if present != set(declared) | {CAPSULE_NAME, MARKER_NAME}:
-        raise ValueError("Capsule contains undeclared or missing files")
-    if any(path.is_symlink() for path in root.rglob("*")):
-        raise ValueError("Capsule must not contain symlinks")
+    if not tree_matches(root, set(declared) | {CAPSULE_NAME, MARKER_NAME}):
+        raise ValueError("Capsule contains undeclared, special or missing entries")
 
     run_bytes = declared.get("provenance/source-run.json")
     complete_bytes = declared.get("provenance/source-complete.json")

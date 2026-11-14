@@ -44,6 +44,23 @@ def predict_bundle(
         min_context_days=fitted.min_context_days,
     )
 
+    observed = set(
+        map(tuple, request.sales_history[["store_nbr", "family"]].drop_duplicates().to_numpy())
+    )
+    for store, family in request.series_keys:
+        if (store, family) not in {(int(s), str(f)) for s, f in observed}:
+            raise ForecastRequestError(
+                "HISTORY_INSUFFICIENT", "sales_history", f"store_nbr={store},family={family}"
+            )
+    # 2: models whose state is a snapshot at the cutoff cannot serve later origins.
+    if (
+        fitted.signature.get("origin_rule") == "equals_training_cutoff"
+        and request.origin != fitted.training_cutoff
+    ):
+        raise BundleError(
+            "ORIGIN_UNSUPPORTED", "this model forecasts only from its training cutoff"
+        )
+
     raw = get_adapter(fitted.adapter_id).predict_raw(fitted, request)
     if tuple(raw.columns) != RAW_PREDICTION_COLUMNS:
         raise ForecastRequestError("SCHEMA_INVALID", "adapter.output")

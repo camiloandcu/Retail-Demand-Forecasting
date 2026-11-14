@@ -3,7 +3,7 @@ MODEL_ID ?=
 BUNDLE ?=
 REQUEST ?=
 TRACKING_ARGS ?=
-MODEL_EXTRAS = $(if $(filter lightgbm_global,$(MODEL_ID))$(findstring lightgbm_global,$(BUNDLE)),--extra models,)
+MODEL_EXTRAS = $(if $(filter lightgbm_global,$(MODEL_ID))$(findstring lightgbm_global,$(BUNDLE))$(findstring capsule:,$(BUNDLE)),--extra models,)
 
 .PHONY: install test lint smoke baseline compare train evaluate request predict
 

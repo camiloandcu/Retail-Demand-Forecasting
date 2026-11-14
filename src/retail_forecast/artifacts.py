@@ -66,6 +66,44 @@ def safe_path(root: Path, relative: str | Path, *, regular: bool = False) -> Pat
     return target
 
 
+def read_regular_bytes(root: Path, relative: str | Path) -> bytes:
+    """Read a contained regular file through one no-follow descriptor.
+
+    `safe_path` validates the name; opening with O_NOFOLLOW and checking the open
+    descriptor closes the window in which a symlink or FIFO could be swapped in.
+    """
+    path = safe_path(root, relative, regular=True)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    descriptor = os.open(path, flags)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError("Artifact is not a regular file")
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            return stream.read()
+    finally:
+        os.close(descriptor)
+
+
+def tree_matches(root: Path, declared: set[str]) -> bool:
+    """True when root holds exactly the declared regular files and their parents."""
+    root = _trusted_path(root)
+    directories = {
+        parent.as_posix()
+        for name in declared
+        for parent in PurePosixPath(name).parents
+        if parent != PurePosixPath(".")
+    }
+    for path in root.rglob("*"):
+        name = path.relative_to(root).as_posix()
+        mode = path.lstat().st_mode
+        if stat.S_ISDIR(mode):
+            if name not in directories:
+                return False
+        elif not stat.S_ISREG(mode) or name not in declared:
+            return False
+    return all((root / name).is_file() for name in declared)
+
+
 def resolve_run(config: ProjectConfig, run_id: str) -> Path:
     return safe_path(config.paths.artifacts_dir, validate_run_id(run_id))
 

@@ -75,6 +75,8 @@ class _SeasonalAdapter:
             target_transform="identity",
         )
         signature["feature_spec_sha256"] = training.spec.sha256
+        # The table is the history at the cutoff; a later origin would replay stale weeks.
+        signature["origin_rule"] = "equals_training_cutoff"
         native = {
             "weekday": {(s, f, w): v for s, f, w, v in weekday_rows},
             "fallback": {(s, f): v for s, f, v in fallback_rows},

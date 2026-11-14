@@ -159,3 +159,23 @@ def test_cli_result_verifier_rejects_corruption(
     Path(result["submission"]).write_bytes(b"id,sales\n")
     with pytest.raises(ValueError):
         verifier.verify_result(result_path, mode="smoke", source="synthetic")
+
+
+def test_pre_bundle_completed_records_stay_verifiable_but_not_selectable(
+    synthetic_config: ProjectConfig,
+) -> None:
+    from retail_forecast.artifact_schema import validate_manifest
+
+    manifest = read_completed_run(Path(train(synthetic_config, model_id=SEASONAL)["run_dir"]))
+    base = [
+        e for e in manifest["artifacts"] if e["kind"] in {"resolved_config", "dataset_manifest"}
+    ]
+    template = base[0]
+    legacy = [
+        *base,
+        {**template, "path": "models/seasonal_naive.json", "kind": "model"},
+        {**template, "path": "dataset_summary.json", "kind": "dataset_summary"},
+    ]
+    assert validate_manifest({**manifest, "artifacts": legacy}, successful=True)
+    with pytest.raises(ValueError, match="producer-required"):
+        validate_manifest({**manifest, "artifacts": base}, successful=True)

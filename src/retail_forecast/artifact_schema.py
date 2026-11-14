@@ -36,6 +36,13 @@ REQUIRED_KINDS = {
     "audit": {"audit_manifest", "audit_table", "figure"},
     "features": {"split_manifest", "feature_manifest"},
 }
+# Completed records produced before verified bundles stay verifiable as history.
+# They are never selectable as bundles: loading requires a listed bundle manifest.
+LEGACY_REQUIRED_KINDS = {
+    "training": {"model", "dataset_summary"},
+    "prediction": {"submission"},
+    "smoke": {"model", "dataset_summary", "evaluation", "submission", "smoke_summary"},
+}
 MANIFEST_KEYS = {
     "schema_version",
     "run_id",
@@ -173,7 +180,11 @@ def validate_manifest(value: Any, *, successful: bool = False) -> dict[str, Any]
         if not isinstance(entry["kind"], str) or not entry["kind"]:
             raise ValueError("Invalid artifact kind")
     if successful:
-        required = REQUIRED_KINDS[value["kind"]] | {"resolved_config", "dataset_manifest"}
-        if not required.issubset({entry["kind"] for entry in value["artifacts"]}):
+        produced = {entry["kind"] for entry in value["artifacts"]}
+        base = {"resolved_config", "dataset_manifest"}
+        alternatives = [REQUIRED_KINDS[value["kind"]]]
+        if value["kind"] in LEGACY_REQUIRED_KINDS:
+            alternatives.append(LEGACY_REQUIRED_KINDS[value["kind"]])
+        if not any((required | base) <= produced for required in alternatives):
             raise ValueError("Missing producer-required artifacts")
     return value

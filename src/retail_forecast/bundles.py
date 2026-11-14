@@ -18,6 +18,7 @@ from retail_forecast.artifacts import (
     _trusted_path,
     ensure_running,
     read_completed_run,
+    read_regular_bytes,
     safe_path,
     write_run_artifact,
 )
@@ -35,6 +36,7 @@ BUNDLE_CODES: Final = frozenset(
         "BUNDLE_MISSING",
         "BUNDLE_UNSUPPORTED",
         "ORIGIN_BEFORE_CUTOFF",
+        "ORIGIN_UNSUPPORTED",
         "POLICY_MISMATCH",
     }
 )
@@ -231,10 +233,9 @@ def _read_verified(directory: Path, name: str, expected_sha: str | None) -> byte
     if not candidate.exists() and not candidate.is_symlink():
         raise BundleError("BUNDLE_MISSING", f"bundle file {name!r} is unavailable")
     try:
-        path = safe_path(directory, name, regular=True)
-    except ValueError as error:
+        data = read_regular_bytes(directory, name)
+    except (ValueError, OSError) as error:
         raise BundleError("BUNDLE_INVALID", f"bundle file {name!r} is unsafe") from error
-    data = path.read_bytes()
     if expected_sha is not None and hashlib.sha256(data).hexdigest() != expected_sha:
         raise BundleError("BUNDLE_INVALID", f"bundle file {name!r} failed integrity")
     return data
@@ -261,7 +262,7 @@ def _container_listing(
             for entry in running.manifest["artifacts"]
             if entry["path"].startswith(prefix)
         }
-        return safe_path(ref.root, ref.relative), listing, running.run_id
+        return safe_path(ref.root, ref.relative), listing, running.run_id, running.manifest
     if ref.kind == "run":
         if not ref.root.exists():
             raise BundleError("BUNDLE_MISSING", "training run is unavailable")
@@ -278,7 +279,7 @@ def _container_listing(
             for entry in manifest["artifacts"]
             if entry["path"].startswith(prefix)
         }
-        return safe_path(ref.root, ref.relative), listing, manifest["run_id"]
+        return safe_path(ref.root, ref.relative), listing, manifest["run_id"], manifest
     if ref.kind == "capsule":
         try:
             capsule = verify_inference_capsule(ref.root)
@@ -291,7 +292,17 @@ def _container_listing(
             for entry in capsule["files"]
             if entry["path"].startswith("bundle/")
         }
-        return safe_path(_trusted_path(ref.root), "bundle"), listing, None
+        from retail_forecast.io_utils import parse_json_bytes as _parse
+
+        witness = _parse(read_regular_bytes(_trusted_path(ref.root), "provenance/source-run.json"))
+        if (
+            capsule["availability_policy"] != witness["availability_policy"]
+            or capsule["execution_mode"] != witness["execution_mode"]
+            or capsule["data_source"] != witness["data_source"]
+        ):
+            raise BundleError("BUNDLE_INVALID", "capsule metadata differs from its witness")
+        bundle_dir = safe_path(_trusted_path(ref.root), "bundle")
+        return bundle_dir, listing, witness["run_id"], witness
     raise BundleError("BUNDLE_INVALID", "unknown bundle location kind")
 
 
@@ -355,7 +366,7 @@ def load_bundle(
 ) -> LoadedModel:
     """Verify container, manifest, files, policy and adapter, then build the model."""
 
-    directory, listing, container_run_id = _container_listing(
+    directory, listing, container_run_id, run_identity = _container_listing(
         ref, expected_mode, expected_source, running
     )
     if "bundle.json" not in listing:
@@ -369,6 +380,34 @@ def load_bundle(
         raise BundleError("BUNDLE_INVALID", "bundle manifest is not valid JSON") from error
     if container_run_id is not None and manifest["training_run_id"] != container_run_id:
         raise BundleError("BUNDLE_INVALID", "bundle names another training run")
+    if ref.kind == "capsule":
+        capsule_manifest = parse_json_bytes(
+            read_regular_bytes(_trusted_path(ref.root), "capsule.json")
+        )
+        if any(
+            capsule_manifest[key] != manifest[key]
+            for key in (
+                "availability_policy",
+                "input_contract_version",
+                "execution_mode",
+                "data_source",
+                "bundle_id",
+            )
+        ):
+            raise BundleError("BUNDLE_INVALID", "capsule metadata differs from its bundle")
+    if run_identity is not None and any(
+        manifest[key] != run_identity[key]
+        for key in (
+            "snapshot_id",
+            "config_sha256",
+            "code",
+            "seed",
+            "data_source",
+            "execution_mode",
+            "availability_policy",
+        )
+    ):
+        raise BundleError("BUNDLE_INVALID", "bundle provenance differs from its training run")
     if manifest["availability_policy"] != expected_policy:
         raise BundleError("POLICY_MISMATCH", "bundle policy differs from the request policy")
     if manifest["input_contract_version"] != expected_input_version:

@@ -13,7 +13,7 @@ from typing import Any, Final
 
 import pandas as pd
 
-from retail_forecast.artifacts import _trusted_path, safe_path
+from retail_forecast.artifacts import _trusted_path, read_regular_bytes, tree_matches
 from retail_forecast.data_contracts import (
     TABLE_COLUMNS,
     ForecastRequest,
@@ -132,7 +132,7 @@ def request_files(directory: Path) -> dict[str, bytes]:
     """Read the manifest and every declared table once, verifying hashes and closure."""
 
     directory = _trusted_path(directory)
-    manifest_bytes = safe_path(directory, MANIFEST_NAME, regular=True).read_bytes()
+    manifest_bytes = read_regular_bytes(directory, MANIFEST_NAME)
     manifest = parse_json_bytes(manifest_bytes)
     if not isinstance(manifest, dict) or set(manifest) != MANIFEST_KEYS:
         raise ValueError("Invalid request manifest schema")
@@ -148,15 +148,12 @@ def request_files(directory: Path) -> dict[str, bytes]:
     for name, entry in tables.items():
         if entry.get("path") != f"tables/{name}.csv":
             raise ValueError("Unexpected request table path")
-        data = safe_path(directory, entry["path"], regular=True).read_bytes()
+        data = read_regular_bytes(directory, entry["path"])
         if len(data) != entry["bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
             raise ValueError("Request table failed integrity verification")
         contents[entry["path"]] = data
-    present = {
-        path.relative_to(directory).as_posix() for path in directory.rglob("*") if path.is_file()
-    }
-    if present != set(contents):
-        raise ValueError("Request directory contains undeclared or missing files")
+    if not tree_matches(directory, set(contents)):
+        raise ValueError("Request directory contains undeclared, special or missing entries")
     return contents
 
 
