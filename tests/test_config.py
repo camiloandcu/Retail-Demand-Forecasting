@@ -44,3 +44,31 @@ def test_preregistered_baseline_contract_is_enforced(
     path.write_text(yaml.safe_dump(raw))
     with pytest.raises(ConfigError, match=message):
         load_config(path)
+
+
+@pytest.mark.parametrize(
+    ("name", "policy"),
+    [
+        ("smoke", "competition_v1"),
+        ("full", "competition_v1"),
+        ("asof", "asof_v1"),
+        ("smoke-asof", "asof_v1"),
+    ],
+)
+def test_every_config_declares_its_availability_policy(name: str, policy: str) -> None:
+    assert load_config(f"configs/{name}.yaml").data.availability_policy == policy
+
+
+@pytest.mark.parametrize("value", [None, "", "realtime_v9", "ASOF_V1"])
+def test_missing_or_unknown_policy_is_rejected(tmp_path: Path, value: object) -> None:
+    raw = yaml.safe_load(Path("configs/smoke-asof.yaml").read_text())
+    if value is None:
+        del raw["data"]["availability_policy"]
+        message = "Invalid keys"
+    else:
+        raw["data"]["availability_policy"] = value
+        message = "availability_policy"
+    path = tmp_path / "invalid.yaml"
+    path.write_text(yaml.safe_dump(raw))
+    with pytest.raises(ConfigError, match=message):
+        load_config(path)

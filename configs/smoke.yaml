@@ -4,6 +4,7 @@ paths:
   raw_data_dir: data/synthetic
   artifacts_dir: artifacts/smoke
 data:
+  availability_policy: competition_v1
   source: synthetic
   expected_stores: 2
   expected_families: 2

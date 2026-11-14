@@ -4,6 +4,7 @@ paths:
   raw_data_dir: data/raw
   artifacts_dir: artifacts/full
 data:
+  availability_policy: competition_v1
   source: kaggle
   expected_stores: 54
   expected_families: 33

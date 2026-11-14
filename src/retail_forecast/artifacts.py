@@ -142,7 +142,7 @@ def allocate_run(
         "code": code_identity(),
         "config_sha256": digest_json(normalized),
         "input_contract_version": 1,
-        "availability_policy": "competition_v1",
+        "availability_policy": config.data.availability_policy,
         "snapshot_id": None,
         "seed": config.runtime.seed,
         "started_at_utc": _now(),

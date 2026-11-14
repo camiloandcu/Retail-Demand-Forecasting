@@ -57,7 +57,17 @@ def test_real_baseline_isolated_and_preserves_oof_scores(
             assert rmsle(frame["y_true"], frame["y_pred"]) == pytest.approx(expected)
         results.append(result)
     assert results[0]["paths"]["manifest"] != results[1]["paths"]["manifest"]
-    pd.testing.assert_frame_equal(results[0]["oof"], results[1]["oof"])
+    # Lineage legitimately differs per run; predictions and keys must not.
+    pd.testing.assert_frame_equal(
+        results[0]["oof"].drop(columns="run_id"), results[1]["oof"].drop(columns="run_id")
+    )
+    oof = results[0]["oof"]
+    assert set(oof["lineage_status"]) == {"research_partial"}
+    assert set(oof["availability_policy"]) == {"competition_v1"}
+    assert "bundle_id" not in oof.columns
+    stored = pd.read_parquet(results[0]["paths"]["oof"])
+    assert results[0]["paths"]["oof"].name == "research-oof.parquet"
+    pd.testing.assert_frame_equal(stored, oof)
     assert np.isfinite(results[0]["oof"]["y_pred"]).all()
 
 
@@ -220,8 +230,8 @@ def test_two_baseline_processes_preserve_full_and_legacy_evidence(
                 process.wait()
     assert results[0]["run_id"] != results[1]["run_id"]
     assert {path: sha256_file(path) for path in sentinels} == before
-    first = pd.read_csv(results[0]["oof"])
-    second = pd.read_csv(results[1]["oof"])
+    first = pd.read_parquet(results[0]["oof"]).drop(columns="run_id")
+    second = pd.read_parquet(results[1]["oof"]).drop(columns="run_id")
     pd.testing.assert_frame_equal(first, second)
 
 
