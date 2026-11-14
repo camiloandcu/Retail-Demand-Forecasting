@@ -137,3 +137,13 @@ def test_resume_is_explicit_and_unsupported_native_state_is_not_retrained(
     with pytest.raises(ValueError, match="RESUME_UNSUPPORTED"):
         train(synthetic_config, resume_from=trained["run_id"])
     assert all(p.read_bytes() == content for p, content in before.items())
+
+
+def test_prediction_rejects_parent_from_another_policy(synthetic_config: ProjectConfig) -> None:
+    trained = train(synthetic_config)
+    asof = replace(
+        synthetic_config,
+        data=replace(synthetic_config.data, availability_policy="asof_v1"),
+    )
+    with pytest.raises(ValueError, match="TRAINING_RUN_IDENTITY_MISMATCH"):
+        predict(asof, training_run=trained["run_id"])

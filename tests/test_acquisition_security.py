@@ -193,3 +193,69 @@ def test_client_failure_does_not_expose_third_party_output(
     assert sentinel not in captured.out + captured.err + caplog.text
     assert sentinel not in "".join(traceback.format_exception(error.value))
     assert not (tmp_path / "raw").exists()
+
+
+def _tree_hashes(root: Path) -> dict[str, str]:
+    return {
+        str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and not path.is_symlink()
+    }
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [("../sentinel.txt", b"overwrite"), ("/tmp/sentinel.txt", b"x"), ("nested/../../s", b"x")],
+)
+def test_hostile_members_leave_outside_sentinels_unchanged(tmp_path, manifest, extra):
+    root = tmp_path / "root"
+    root.mkdir()
+    sentinel = tmp_path / "sentinel.txt"
+    sentinel.write_bytes(b"outside")
+    archive = make_archive(tmp_path / "data.zip", extra=extra)
+    before = _tree_hashes(tmp_path)
+    with pytest.raises(RuntimeError):
+        acquisition.extract_competition_archive(archive, root / "raw", manifest=manifest)
+    after = _tree_hashes(tmp_path)
+    assert after == before
+    assert not (root / "raw").exists()
+
+
+def test_stream_longer_than_declared_header_publishes_nothing(tmp_path, manifest, monkeypatch):
+    raw = tmp_path / "raw"
+    archive = make_archive(tmp_path / "data.zip")
+    real_open = ZipFile.open
+
+    def lying_open(self, member, *args, **kwargs):
+        if getattr(member, "filename", member) == "train.csv":
+            return io.BytesIO(b"safe\n" + b"x" * 4096)
+        return real_open(self, member, *args, **kwargs)
+
+    monkeypatch.setattr(ZipFile, "open", lying_open)
+    with pytest.raises(RuntimeError, match="byte limit"):
+        acquisition.extract_competition_archive(archive, raw, manifest=manifest)
+    assert not raw.exists()
+    assert not list(tmp_path.glob(".acquire-*"))
+
+
+def test_symlinked_archive_is_rejected(tmp_path, manifest):
+    real = make_archive(tmp_path / "real.zip")
+    alias = tmp_path / "alias.zip"
+    alias.symlink_to(real)
+    with pytest.raises(RuntimeError, match="symlinks"):
+        acquisition.extract_competition_archive(alias, tmp_path / "raw", manifest=manifest)
+    assert not (tmp_path / "raw").exists()
+
+
+def test_interrupted_extraction_keeps_existing_valid_source(tmp_path, manifest, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    for name in FILE_COLUMNS:
+        (raw / name).write_bytes(b"safe\n")
+    before = _tree_hashes(raw)
+    archive = make_archive(tmp_path / "data.zip")
+    monkeypatch.setattr(
+        acquisition, "copy_verified", lambda *args: (_ for _ in ()).throw(OSError("cut"))
+    )
+    acquisition.extract_competition_archive(archive, raw, manifest=manifest)
+    assert _tree_hashes(raw) == before

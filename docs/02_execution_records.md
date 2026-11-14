@@ -42,8 +42,8 @@ to later model work.
 
 A run contains `run.json`, normalized `config.resolved.json`, an input snapshot
 manifest and the outputs its producer declares. Input identity includes actual source
-bytes and the current `competition_v1` availability policy. It does not establish
-operational as-of availability. Dirty or unidentified code remains visibly labeled;
+bytes and the run's declared [availability policy](03_availability_policies.md).
+Snapshots of the same files under different policies have different identities. Dirty or unidentified code remains visibly labeled;
 synthetic results cannot establish empirical forecasting quality.
 
 Only a successful manifest with a valid `COMPLETE.json` and verified artifact

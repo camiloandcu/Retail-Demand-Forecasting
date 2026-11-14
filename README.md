@@ -78,7 +78,9 @@ These commands default to `configs/full.yaml`. Override the configuration with
   submission.
 - Notebooks import `retail_forecast`; they do not reimplement metrics, features,
   training, or inference.
-- `configs/smoke.yaml` and `configs/full.yaml` share one validated schema.
+- All configs share one validated schema and declare an explicit
+  [availability policy](docs/03_availability_policies.md); results from
+  different policies are never pooled.
 - Generated datasets, models, predictions, MLflow state, checkpoints, and
   credentials stay outside Git.
 - CI uses only generated synthetic fixtures.

@@ -122,6 +122,18 @@ def validate_dataset(config: ProjectConfig) -> DatasetSummary:
         raise DataContractError("IDs must be unique in train and test")
     if train["sales"].isna().any() or (train["sales"] < 0).any():
         raise DataContractError("Training sales must be present and non-negative")
+    for name, frame, column in (
+        ("train.csv", train, "sales"),
+        ("train.csv", train, "onpromotion"),
+        ("test.csv", test, "onpromotion"),
+        ("transactions.csv", transactions, "transactions"),
+    ):
+        values = pd.to_numeric(frame[column], errors="coerce").to_numpy(dtype=float)
+        if not np.isfinite(values).all():
+            raise DataContractError(f"{name} {column} values must be finite")
+    oil_values = pd.to_numeric(oil["dcoilwtico"], errors="coerce").to_numpy(dtype=float)
+    if np.isinf(oil_values).any():
+        raise DataContractError("oil.csv values must be finite when present")
     if train["onpromotion"].isna().any() or test["onpromotion"].isna().any():
         raise DataContractError("Promotion values must be present")
     if (train["onpromotion"] < 0).any() or (test["onpromotion"] < 0).any():
@@ -268,27 +280,25 @@ def write_synthetic_dataset(config: ProjectConfig) -> Path:
         columns=FILE_COLUMNS["transactions.csv"],
     )
     holiday_date = test_dates[2].date().isoformat()
-    holidays = pd.DataFrame(
-        [
-            {
-                "date": holiday_date,
-                "type": "Holiday",
-                "locale": "National",
-                "locale_name": "Synthetic Country",
-                "description": "Synthetic national holiday",
-                "transferred": False,
-            },
-            {
-                "date": holiday_date,
-                "type": "Event",
-                "locale": "Local",
-                "locale_name": "SYNTHETIC_CITY_1",
-                "description": "Synthetic local event",
-                "transferred": False,
-            },
-        ],
-        columns=FILE_COLUMNS["holidays_events.csv"],
-    )
+
+    def day(offset: int) -> str:
+        return train_dates[min(offset, len(train_dates) - 1)].date().isoformat()
+
+    # Calendar cases inside training and validation windows: national, regional
+    # and local scopes, excluded Event rows, a transfer pair and a work day.
+    calendar_rows = [
+        (day(19), "Holiday", "National", "Synthetic Country", "Synthetic holiday", False),
+        (day(24), "Event", "National", "Synthetic Country", "Synthetic shock", False),
+        (day(35), "Holiday", "Regional", "SYNTHETIC_STATE_1", "Synthetic regional", False),
+        (day(35), "Holiday", "Local", "SYNTHETIC_CITY_2", "Synthetic local", False),
+        (day(40), "Holiday", "National", "Synthetic Country", "Synthetic moved", True),
+        (day(41), "Transfer", "National", "Synthetic Country", "Synthetic moved", False),
+        (day(50), "Event", "Local", "SYNTHETIC_CITY_1", "Synthetic local event", False),
+        (day(53), "Work Day", "National", "Synthetic Country", "Synthetic work day", False),
+        (holiday_date, "Holiday", "National", "Synthetic Country", "Synthetic holiday", False),
+        (holiday_date, "Event", "Local", "SYNTHETIC_CITY_1", "Synthetic local event", False),
+    ]
+    holidays = pd.DataFrame(calendar_rows, columns=FILE_COLUMNS["holidays_events.csv"])
     sample = pd.DataFrame(
         {"id": test["id"].astype(int), "sales": np.zeros(len(test), dtype=float)},
         columns=FILE_COLUMNS["sample_submission.csv"],

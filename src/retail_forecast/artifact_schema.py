@@ -6,6 +6,8 @@ import re
 from datetime import datetime
 from typing import Any
 
+from retail_forecast.availability import POLICIES
+
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_KINDS = {
@@ -105,9 +107,8 @@ def validate_manifest(value: Any, *, successful: bool = False) -> dict[str, Any]
         _hash(value["snapshot_id"])
     if type(value["input_contract_version"]) is not int or value["input_contract_version"] != 1:
         raise ValueError("Invalid input contract")
-    if (
-        not isinstance(value["availability_policy"], str)
-        or value["availability_policy"] != "competition_v1"
+    if not isinstance(value["availability_policy"], str) or (
+        value["availability_policy"] not in POLICIES
     ):
         raise ValueError("Unsupported availability policy")
     if type(value["seed"]) is not int:

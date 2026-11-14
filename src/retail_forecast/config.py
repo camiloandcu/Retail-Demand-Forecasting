@@ -9,6 +9,8 @@ from typing import Any
 
 import yaml
 
+from retail_forecast.availability import PolicyMismatchError, resolve_policy
+
 PROJECT_HORIZON = 16
 
 
@@ -29,6 +31,7 @@ class DataConfig:
     """Dataset source and expected panel dimensions."""
 
     source: str
+    availability_policy: str
     expected_stores: int
     expected_families: int
     fixture_start_date: date
@@ -97,6 +100,7 @@ SCHEMA: dict[str, set[str]] = {
     "paths": {"raw_data_dir", "artifacts_dir"},
     "data": {
         "source",
+        "availability_policy",
         "expected_stores",
         "expected_families",
         "fixture_start_date",
@@ -190,6 +194,12 @@ def load_config(path: str | Path) -> ProjectConfig:
         raise ConfigError("Smoke mode must use the synthetic source")
     if mode == "full" and source != "kaggle":
         raise ConfigError("Full mode must use the Kaggle source")
+    try:
+        policy = resolve_policy(sections["data"]["availability_policy"]).name
+    except PolicyMismatchError as error:
+        raise ConfigError(
+            "'data.availability_policy' must be 'competition_v1' or 'asof_v1'"
+        ) from error
     if log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         raise ConfigError("'runtime.log_level' is not a standard logging level")
     baseline = sections["baseline"]
@@ -227,6 +237,7 @@ def load_config(path: str | Path) -> ProjectConfig:
         ),
         data=DataConfig(
             source=source,
+            availability_policy=policy,
             expected_stores=_positive_int(
                 sections["data"]["expected_stores"], "data.expected_stores"
             ),

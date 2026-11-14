@@ -3333,6 +3333,7 @@ dev = [
 models = [
     { name = "lightgbm" },
     { name = "mlflow" },
+    { name = "pyarrow" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.9.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
@@ -3362,6 +3363,7 @@ requires-dist = [
     { name = "nbformat", marker = "extra == 'notebook'", specifier = ">=5.10,<6" },
     { name = "numpy", specifier = ">=1.26,<3" },
     { name = "pandas", specifier = ">=2.1,<3" },
+    { name = "pyarrow", marker = "extra == 'models'", specifier = ">=15,<26" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<9" },
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1" },

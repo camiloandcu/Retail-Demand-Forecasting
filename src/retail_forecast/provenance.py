@@ -145,7 +145,7 @@ def dataset_snapshot(config: ProjectConfig, input_dir: Path) -> dict[str, Any]:
         "data_source": config.data.source,
         "execution_mode": config.mode,
         "input_contract_version": 1,
-        "availability_policy": "competition_v1",
+        "availability_policy": config.data.availability_policy,
         "stage": "raw_benchmark",
         "files": files,
         "valid_date_range": {"start": str(train.date.min()), "end": str(train.date.max())},

@@ -17,6 +17,11 @@ from retail_forecast.artifacts import (
     write_json_artifact,
     write_run_artifact,
 )
+from retail_forecast.availability import (
+    PolicyMismatchError,
+    require_same_policy,
+    resolve_policy,
+)
 from retail_forecast.baseline import (
     fit_seasonal_average,
     fit_seasonal_naive,
@@ -25,12 +30,16 @@ from retail_forecast.baseline import (
 )
 from retail_forecast.config import ProjectConfig
 from retail_forecast.data import load_frames
-from retail_forecast.eda import sha256_file
+from retail_forecast.data_contracts import attach_labels, benchmark_labels
+from retail_forecast.dataset_card import build_data_card, validate_data_card
+from retail_forecast.eda import build_eda_summary, build_eda_tables, load_eda_frames, sha256_file
 from retail_forecast.features import (
     FeatureBatch,
     FeatureSpec,
     build_origin_feature_batch,
+    build_request_feature_batch,
     fit_preprocessor,
+    project_benchmark_request,
     transform_features,
 )
 from retail_forecast.metrics import clip_nonnegative_predictions, rmsle
@@ -42,6 +51,8 @@ from retail_forecast.versions import capture_versions
 MODEL_IDS = ("zero", "seasonal_naive_7d", "seasonal_average_4w", "lightgbm_global")
 TREE_MODEL_ID = "lightgbm_global"
 BUSINESS_BASELINE_IDS = ("seasonal_naive_7d", "seasonal_average_4w")
+RESEARCH_OOF_PATH = "predictions/research-oof.parquet"
+LINEAGE_STATUS = "research_partial"
 
 
 def training_origins(
@@ -130,6 +141,8 @@ def segmented_rmsle(oof: pd.DataFrame) -> pd.DataFrame:
     missing = required.difference(oof.columns)
     if missing:
         raise ValueError(f"OOF frame is missing columns: {sorted(missing)}")
+    if "availability_policy" in oof.columns:
+        require_same_policy(oof["availability_policy"].unique(), context="OOF scoring")
     records: list[dict[str, Any]] = []
 
     def append(model_id: str, scope: str, segment: str, frame: pd.DataFrame) -> None:
@@ -179,7 +192,10 @@ def _lightgbm_params(config: ProjectConfig) -> dict[str, Any]:
 
 
 def _model_matrix(transformed: pd.DataFrame) -> pd.DataFrame:
-    return transformed.drop(columns=["forecast_origin", "target_date", "sales"])
+    # Validation inputs are label-free; training inputs carry the keyed label.
+    return transformed.drop(columns=["forecast_origin", "target_date"]).drop(
+        columns="sales", errors="ignore"
+    )
 
 
 def run_baseline_experiments(
@@ -215,7 +231,14 @@ def run_baseline_experiments(
     # disk snapshot provenance. Verify before and after loading to detect changes.
     verify_inputs(run.snapshot, run.input_dir)
     frames = load_frames(run.input_dir)
+    eda_frames = load_eda_frames(run.input_dir)
     verify_inputs(run.snapshot, run.input_dir)
+    eda_summary = build_eda_summary(eda_frames, build_eda_tables(eda_frames), config.data.source)
+    del eda_frames
+    data_card = build_data_card(run.snapshot, eda_summary, policy=config.data.availability_policy)
+    validate_data_card(data_card, run.snapshot, eda_summary)
+    write_json_artifact(run, "inputs/eda-summary.json", eda_summary, kind="eda_summary")
+    write_json_artifact(run, "inputs/data-card.json", data_card, kind="dataset_card")
     train = frames["train.csv"].copy()
     train["date"] = pd.to_datetime(train["date"], errors="raise")
     feature_frames = dict(frames)
@@ -225,8 +248,22 @@ def run_baseline_experiments(
         feature_frames["transactions.csv"]["date"], errors="raise"
     )
     folds = make_rolling_origin_folds(config, train["date"])
-    spec = FeatureSpec(horizon=config.forecast.horizon)
-    batch_cache: dict[pd.Timestamp, FeatureBatch] = {}
+    policy = resolve_policy(config.data.availability_policy)
+    if run.manifest["availability_policy"] != policy.name:
+        raise PolicyMismatchError("POLICY_MISMATCH: run identity differs from configured policy")
+    spec = FeatureSpec(policy.name, horizon=config.forecast.horizon)
+    snapshot_id = run.manifest["snapshot_id"]
+    supported_series = tuple(
+        (int(item["store_nbr"]), str(item["family"])) for item in run.snapshot["supported_series"]
+    )
+    identity = {
+        "snapshot_id": snapshot_id,
+        "data_source": config.data.source,
+        "supported_series": supported_series,
+    }
+    # Cache identity separates snapshots, origins and policy-bearing feature specs.
+    batch_cache: dict[tuple[str, pd.Timestamp, str], FeatureBatch] = {}
+    expected_grid_rows: dict[str, dict[str, int]] = {}
     oof_parts: list[pd.DataFrame] = []
     cost_records: list[dict[str, Any]] = []
     model_paths: list[Path] = []
@@ -235,7 +272,10 @@ def run_baseline_experiments(
     feature_contract: dict[str, Any] | None = None
 
     for fold in folds:
-        validation_batch = build_origin_feature_batch(feature_frames, fold.origin, spec)
+        request = project_benchmark_request(feature_frames, fold.origin, spec, **identity)
+        validation_batch = build_request_feature_batch(
+            request, spec, supported_series=supported_series
+        )
         if feature_contract is None:
             feature_contract = {
                 "count": validation_batch.feature_count,
@@ -243,20 +283,14 @@ def run_baseline_experiments(
                 "categorical": list(validation_batch.categorical_features),
                 "spec": spec.to_dict(),
                 "spec_sha256": spec.sha256,
+                "availability_policy": policy.name,
+                "input_contract_version": policy.input_contract_version,
             }
-        validation = validation_batch.frame.copy()
-        id_lookup = train.loc[
-            train["date"].isin(fold.validation_dates),
-            ["id", "date", "store_nbr", "family"],
-        ].rename(columns={"date": "target_date"})
-        validation = validation.merge(
-            id_lookup,
-            on=["target_date", "store_nbr", "family"],
-            how="left",
-            validate="one_to_one",
-        )
-        if validation["id"].isna().any():
-            raise ValueError(f"{fold.name} OOF identifiers are incomplete")
+        # Labels join by key only after label-free features exist.
+        labels = benchmark_labels(train, fold.validation_dates)
+        validation = attach_labels(validation_batch.frame, labels)
+        if len(validation) != len(request.series_keys) * fold.horizon:
+            raise ValueError(f"{fold.name} validation grid is incomplete")
         validation["promotion_regime"] = np.where(
             validation["onpromotion"].gt(0), "promoted", "not_promoted"
         )
@@ -272,14 +306,15 @@ def run_baseline_experiments(
         memory_by_model["zero"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
         started = time.perf_counter()
-        weekly = fit_seasonal_naive(train, fold.origin, config.forecast.seasonal_period)
+        history = request.sales_history
+        weekly = fit_seasonal_naive(history, fold.origin, config.forecast.seasonal_period)
         predictions["seasonal_naive_7d"] = predict_seasonal_naive(weekly, forecast_frame).to_numpy()
         durations["seasonal_naive_7d"] = time.perf_counter() - started
         memory_by_model["seasonal_naive_7d"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
         started = time.perf_counter()
         averaged = fit_seasonal_average(
-            train,
+            history,
             fold.origin,
             weeks=config.baseline.seasonal_average_weeks,
             seasonal_period=config.forecast.seasonal_period,
@@ -317,10 +352,22 @@ def run_baseline_experiments(
             >= observed_dates.min()
             and origin not in selected
         }
-        for origin in origins:
-            if origin not in batch_cache:
-                batch_cache[origin] = build_origin_feature_batch(feature_frames, origin, spec)
-        training_batch = combine_feature_batches([batch_cache[origin] for origin in origins])
+        keys = [(snapshot_id, origin, spec.sha256) for origin in origins]
+        for key, origin in zip(keys, origins, strict=True):
+            if key not in batch_cache:
+                batch_cache[key] = build_origin_feature_batch(
+                    feature_frames, origin, spec, **identity
+                )
+        training_batch = combine_feature_batches([batch_cache[key] for key in keys])
+        if training_batch.frame["target_date"].max() > fold.origin:
+            raise ValueError(f"{fold.name} training labels cross the fold cutoff")
+        expected_grid_rows[fold.name] = {
+            "validation_rows": len(validation),
+            "training_rows": len(training_batch.frame),
+            "training_rows_expected": len(origins) * len(supported_series) * fold.horizon,
+        }
+        if len(training_batch.frame) != expected_grid_rows[fold.name]["training_rows_expected"]:
+            raise ValueError(f"{fold.name} training grid is incomplete")
         fitted = fit_preprocessor(training_batch, fold.origin)
         transformed_train = transform_features(training_batch, fitted)
         transformed_validation = transform_features(validation_batch, fitted)
@@ -361,6 +408,7 @@ def run_baseline_experiments(
             ].rename(columns={"sales": "y_true"})
             part.insert(0, "fold", fold.name)
             part.insert(0, "model_id", model_id)
+            part.insert(0, "availability_policy", policy.name)
             part["y_pred"] = predictions[model_id]
             part["squared_log_error"] = np.square(
                 np.log1p(part["y_pred"]) - np.log1p(part["y_true"])
@@ -377,15 +425,31 @@ def run_baseline_experiments(
             )
 
     oof = pd.concat(oof_parts, ignore_index=True)
+    key_sets = {
+        model_id: frame[["fold", "store_nbr", "family", "target_date"]]
+        .sort_values(["fold", "store_nbr", "family", "target_date"])
+        .reset_index(drop=True)
+        for model_id, frame in oof.groupby("model_id", sort=False)
+    }
+    reference = key_sets[MODEL_IDS[0]]
+    if any(not frame.equals(reference) for frame in key_sets.values()):
+        raise ValueError("Comparators were not scored on identical target keys")
+    oof["input_contract_version"] = policy.input_contract_version
+    oof["snapshot_id"] = snapshot_id
+    oof["run_id"] = run.run_id
+    oof["lineage_status"] = LINEAGE_STATUS
+    for column in ("forecast_origin", "target_date"):
+        oof[column] = oof[column].astype("datetime64[ns]")
     results = segmented_rmsle(oof)
+    results.insert(0, "availability_policy", policy.name)
     results_path = write(
         "metrics/baseline_results.csv",
         lambda path: results.to_csv(path, index=False),
         "segmented_metrics",
     )
     oof_path = write(
-        "predictions/baseline_oof.csv.gz",
-        lambda path: oof.to_csv(path, index=False, compression="gzip"),
+        RESEARCH_OOF_PATH,
+        lambda path: oof.to_parquet(path, index=False),
         "oof",
     )
 
@@ -414,6 +478,9 @@ def run_baseline_experiments(
     )
     champion = {
         "mode": config.mode,
+        "availability_policy": policy.name,
+        "input_contract_version": policy.input_contract_version,
+        "snapshot_id": snapshot_id,
         "empirical_results_are_synthetic": config.mode == "smoke",
         "business_baseline": business_champion["model_id"],
         "business_baseline_rmsle": float(business_champion["rmsle"]),
@@ -483,12 +550,15 @@ def run_baseline_experiments(
         "run_id": run.run_id,
         "mode": config.mode,
         "source": config.data.source,
-        "availability_policy": "competition_v1",
+        "availability_policy": policy.name,
+        "input_contract_version": policy.input_contract_version,
+        "lineage_status": LINEAGE_STATUS,
         "models": list(MODEL_IDS),
         "tree_selected_before_training": "lightgbm",
         "folds": [fold.to_dict() for fold in folds],
         "training_origins_by_fold": training_origins_by_fold,
         "skipped_training_origins_by_fold": skipped_training_origins_by_fold,
+        "expected_grid_rows_by_fold": expected_grid_rows,
         "feature_contract": feature_contract,
         "snapshot_id": run.manifest["snapshot_id"],
         "config_sha256": run.manifest["config_sha256"],

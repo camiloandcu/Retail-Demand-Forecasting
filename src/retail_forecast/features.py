@@ -11,7 +11,15 @@ from typing import Any, Final
 import numpy as np
 import pandas as pd
 
+from retail_forecast.availability import AvailabilityPolicy, PolicyMismatchError, resolve_policy
 from retail_forecast.config import PROJECT_HORIZON
+from retail_forecast.data_contracts import (
+    ForecastRequest,
+    attach_labels,
+    benchmark_labels,
+    project_snapshot,
+    validate_forecast_request,
+)
 from retail_forecast.io_utils import write_json
 from retail_forecast.splits import RollingOriginFold, SplitContractError
 
@@ -27,8 +35,9 @@ class FeatureContractError(ValueError):
 
 @dataclass(frozen=True)
 class FeatureSpec:
-    """Pre-registered feature set shared by smoke and full runs."""
+    """Pre-registered feature set; its identity includes the availability policy."""
 
+    availability_policy: str
     sales_lags: tuple[int, ...] = (1, 7, 14, 28, 56)
     sales_windows: tuple[int, ...] = (7, 14, 28, 56)
     transaction_lags: tuple[int, ...] = (1, 7, 14)
@@ -42,6 +51,7 @@ class FeatureSpec:
             self.transaction_lags,
             self.transaction_windows,
         )
+        resolve_policy(self.availability_policy)
         if self.horizon != PROJECT_HORIZON:
             raise FeatureContractError(
                 f"Features must match the real {PROJECT_HORIZON}-day forecast horizon"
@@ -55,6 +65,21 @@ class FeatureSpec:
         """Return a stable JSON-compatible representation."""
 
         return asdict(self)
+
+    @property
+    def policy(self) -> AvailabilityPolicy:
+        return resolve_policy(self.availability_policy)
+
+    @property
+    def context_days(self) -> int:
+        """Calendar days of history any feature can read, ending at the origin."""
+
+        return max(
+            *self.sales_lags,
+            *self.sales_windows,
+            *self.transaction_lags,
+            *self.transaction_windows,
+        )
 
     @property
     def sha256(self) -> str:
@@ -215,37 +240,62 @@ def _transaction_history_features(
 
 
 def build_store_holiday_calendar(
-    stores: pd.DataFrame, holidays: pd.DataFrame, dates: pd.DatetimeIndex
+    stores: pd.DataFrame,
+    holidays: pd.DataFrame,
+    dates: pd.DatetimeIndex,
+    *,
+    policy: AvailabilityPolicy,
 ) -> pd.DataFrame:
-    """Resolve holiday locale and semantics to one row per store-date."""
+    """Resolve allowed calendar rows by locale to one row per store-date."""
 
-    store_frame = stores.copy()
+    store_frame = stores[["store_nbr", "city", "state"]].copy()
     holiday_frame = _parse_dates(holidays, "holidays")
-    holiday_frame = holiday_frame.loc[holiday_frame[TIME_COLUMN].isin(dates)]
-    records: list[dict[str, Any]] = []
-    for row in holiday_frame.itertuples(index=False):
-        if row.locale == "National":
-            applicable = store_frame
-        elif row.locale == "Regional":
-            applicable = store_frame.loc[store_frame["state"] == row.locale_name]
-        elif row.locale == "Local":
-            applicable = store_frame.loc[store_frame["city"] == row.locale_name]
-        else:
-            raise FeatureContractError(f"Unsupported holiday locale: {row.locale}")
-        for store_nbr in applicable["store_nbr"]:
-            active = not bool(row.transferred) and row.type != "Work Day"
-            records.append(
-                {
-                    "store_nbr": store_nbr,
-                    TIME_COLUMN: row.date,
-                    "holiday_event_count": 1,
-                    "is_holiday_event": int(active),
-                    "is_work_day": int(row.type == "Work Day"),
-                    "is_bridge": int(row.type == "Bridge"),
-                    "is_transfer": int(row.type == "Transfer"),
-                    "is_transferred_source": int(bool(row.transferred)),
-                }
-            )
+    holiday_frame = holiday_frame.loc[
+        holiday_frame[TIME_COLUMN].isin(dates)
+        & ~holiday_frame["type"].isin(policy.excluded_calendar_types)
+    ].reset_index(drop=True)
+    unknown = ~holiday_frame["locale"].isin({"National", "Regional", "Local"})
+    if unknown.any():
+        raise FeatureContractError("Unsupported holiday locale")
+    holiday_frame["source_row"] = np.arange(len(holiday_frame))
+    parts = [
+        holiday_frame.loc[holiday_frame["locale"].eq("National")].merge(
+            store_frame[["store_nbr"]], how="cross"
+        ),
+        holiday_frame.loc[holiday_frame["locale"].eq("Regional")].merge(
+            store_frame[["store_nbr", "state"]],
+            left_on="locale_name",
+            right_on="state",
+            how="inner",
+            validate="many_to_many",
+        ),
+        holiday_frame.loc[holiday_frame["locale"].eq("Local")].merge(
+            store_frame[["store_nbr", "city"]],
+            left_on="locale_name",
+            right_on="city",
+            how="inner",
+            validate="many_to_many",
+        ),
+    ]
+    applicable = pd.concat(
+        [part[["source_row", "store_nbr", TIME_COLUMN, "type", "transferred"]] for part in parts],
+        ignore_index=True,
+    )
+    if applicable.duplicated(["source_row", "store_nbr"]).any():
+        raise FeatureContractError("A calendar source row applied twice to one store")
+    transferred = applicable["transferred"].astype(bool)
+    records = pd.DataFrame(
+        {
+            "store_nbr": applicable["store_nbr"],
+            TIME_COLUMN: applicable[TIME_COLUMN],
+            "holiday_event_count": 1,
+            "is_holiday_event": (~transferred & applicable["type"].ne("Work Day")).astype(int),
+            "is_work_day": applicable["type"].eq("Work Day").astype(int),
+            "is_bridge": applicable["type"].eq("Bridge").astype(int),
+            "is_transfer": applicable["type"].eq("Transfer").astype(int),
+            "is_transferred_source": transferred.astype(int),
+        }
+    )
 
     calendar = pd.MultiIndex.from_product(
         [sorted(store_frame["store_nbr"].unique()), dates], names=["store_nbr", TIME_COLUMN]
@@ -258,18 +308,14 @@ def build_store_holiday_calendar(
         "is_transfer",
         "is_transferred_source",
     ]
-    if records:
-        resolved = (
-            pd.DataFrame(records)
-            .groupby(["store_nbr", TIME_COLUMN], as_index=False, observed=True)
-            .agg(
-                holiday_event_count=("holiday_event_count", "sum"),
-                is_holiday_event=("is_holiday_event", "max"),
-                is_work_day=("is_work_day", "max"),
-                is_bridge=("is_bridge", "max"),
-                is_transfer=("is_transfer", "max"),
-                is_transferred_source=("is_transferred_source", "max"),
-            )
+    if not records.empty:
+        resolved = records.groupby(["store_nbr", TIME_COLUMN], as_index=False, observed=True).agg(
+            holiday_event_count=("holiday_event_count", "sum"),
+            is_holiday_event=("is_holiday_event", "max"),
+            is_work_day=("is_work_day", "max"),
+            is_bridge=("is_bridge", "max"),
+            is_transfer=("is_transfer", "max"),
+            is_transferred_source=("is_transferred_source", "max"),
         )
         calendar = calendar.merge(
             resolved, on=["store_nbr", TIME_COLUMN], how="left", validate="one_to_one"
@@ -280,28 +326,40 @@ def build_store_holiday_calendar(
         calendar[column] = calendar[column].fillna(0).astype("int8")
     if calendar.duplicated(["store_nbr", TIME_COLUMN]).any():
         raise FeatureContractError("Resolved holiday calendar is not unique by store-date")
+    if len(calendar) != store_frame["store_nbr"].nunique() * len(dates):
+        raise FeatureContractError("Resolved holiday calendar does not cover the store-date grid")
     return calendar
 
 
-def build_feature_batch(
-    sales_history: pd.DataFrame,
-    target_grid: pd.DataFrame,
-    stores: pd.DataFrame,
-    oil: pd.DataFrame,
-    holidays: pd.DataFrame,
-    transaction_history: pd.DataFrame,
-    origin: pd.Timestamp,
+def build_request_feature_batch(
+    request: ForecastRequest,
     spec: FeatureSpec,
+    *,
+    supported_series: tuple[tuple[int, str], ...],
+    min_context_days: int = 1,
 ) -> FeatureBatch:
-    """Build direct rows using target-date known covariates and origin-only histories."""
+    """Validate a request, then build label-free direct rows under its policy.
 
-    origin = pd.Timestamp(origin).normalize()
-    history = _parse_dates(sales_history, "sales_history")
-    target = _parse_dates(target_grid, "target_grid")
-    oil_frame = _parse_dates(oil, "oil")
-    transactions = _parse_dates(transaction_history, "transaction_history")
+    Validation runs here as well as at projection so that callers constructing a
+    ForecastRequest directly (API, bundles) cannot bypass the input contract.
+    """
+
+    if request.availability_policy != spec.availability_policy:
+        raise PolicyMismatchError("POLICY_MISMATCH: request and feature spec policies differ")
+    validate_forecast_request(
+        request, supported_series=supported_series, min_context_days=min_context_days
+    )
+    if request.horizon != spec.horizon:
+        raise FeatureContractError("Request horizon differs from the feature specification")
+    policy = spec.policy
+    origin = request.origin
+    history = request.sales_history
+    transactions = request.transactions_history
+    target = request.future_plan
+    stores = request.stores
     _require_history_boundary(history, origin, "sales_history")
-    _require_history_boundary(transactions, origin, "transaction_history")
+    if not transactions.empty:
+        _require_history_boundary(transactions, origin, "transaction_history")
     _validate_target_grid(target, origin, spec.horizon)
     sales_lookback = max(max(spec.sales_lags), max(spec.sales_windows))
     transaction_lookback = max(max(spec.transaction_lags), max(spec.transaction_windows))
@@ -317,8 +375,6 @@ def build_feature_batch(
         raise FeatureContractError("Transaction history keys must be unique")
 
     frame = target[[*SERIES_KEYS, TIME_COLUMN, "onpromotion"]].copy()
-    if TARGET_COLUMN in target:
-        frame[TARGET_COLUMN] = target[TARGET_COLUMN].to_numpy()
     frame = frame.rename(columns={TIME_COLUMN: "target_date"})
     frame["forecast_origin"] = origin
     frame["horizon"] = (frame["target_date"] - origin).dt.days.astype("int8")
@@ -349,16 +405,23 @@ def build_feature_batch(
     )
     frame = frame.merge(transaction_features, on="store_nbr", how="left", validate="many_to_one")
 
-    if oil_frame.duplicated(TIME_COLUMN).any():
-        raise FeatureContractError("Oil dates must be unique")
-    oil_target = oil_frame[[TIME_COLUMN, "dcoilwtico"]].rename(
-        columns={TIME_COLUMN: "target_date", "dcoilwtico": "oil_target"}
-    )
-    frame = frame.merge(oil_target, on="target_date", how="left", validate="many_to_one")
-    frame["oil_target_missing"] = frame["oil_target"].isna().astype("int8")
+    if policy.includes_oil:
+        oil_frame = request.competition_oil
+        if oil_frame is None or oil_frame.duplicated(TIME_COLUMN).any():
+            raise FeatureContractError("Competition oil must be present with unique dates")
+        oil_target = oil_frame[[TIME_COLUMN, "dcoilwtico"]].rename(
+            columns={TIME_COLUMN: "target_date", "dcoilwtico": "oil_target"}
+        )
+        frame = frame.merge(oil_target, on="target_date", how="left", validate="many_to_one")
+        frame["oil_target_missing"] = frame["oil_target"].isna().astype("int8")
+    elif request.competition_oil is not None:
+        raise PolicyMismatchError("POLICY_MISMATCH: oil supplied to a policy that excludes it")
 
     holiday_calendar = build_store_holiday_calendar(
-        stores, holidays, pd.DatetimeIndex(sorted(target[TIME_COLUMN].unique()))
+        stores,
+        request.calendar,
+        pd.DatetimeIndex(sorted(target[TIME_COLUMN].unique())),
+        policy=policy,
     ).rename(columns={TIME_COLUMN: "target_date"})
     before_join = len(frame)
     frame = frame.merge(
@@ -371,25 +434,26 @@ def build_feature_batch(
         raise FeatureContractError("Holiday join changed row cardinality")
 
     categorical = ("store_nbr", "family", "city", "state", "type", "cluster")
-    excluded = {
-        *categorical,
-        TARGET_COLUMN,
-        "forecast_origin",
-        "target_date",
-    }
+    excluded = {*categorical, "forecast_origin", "target_date"}
     numeric = tuple(column for column in frame.columns if column not in excluded)
     frame = frame.sort_values(["target_date", *SERIES_KEYS]).reset_index(drop=True)
     return FeatureBatch(frame, numeric, categorical, origin, spec)
 
 
 def build_fold_feature_batches(
-    frames: dict[str, pd.DataFrame], fold: RollingOriginFold, spec: FeatureSpec
+    frames: dict[str, pd.DataFrame],
+    fold: RollingOriginFold,
+    spec: FeatureSpec,
+    *,
+    snapshot_id: str,
+    data_source: str,
 ) -> tuple[FeatureBatch, FeatureBatch]:
     """Create a closed training window and the following validation horizon."""
 
     training_origin = fold.origin - pd.offsets.Day(fold.horizon)
-    training = build_origin_feature_batch(frames, training_origin, spec)
-    validation = build_origin_feature_batch(frames, fold.origin, spec)
+    identity = {"snapshot_id": snapshot_id, "data_source": data_source}
+    training = build_origin_feature_batch(frames, training_origin, spec, **identity)
+    validation = build_origin_feature_batch(frames, fold.origin, spec, **identity)
     if training.frame["target_date"].max() > fold.origin:
         raise SplitContractError("Preprocessor training targets cross the validation origin")
     if validation.frame["target_date"].min() <= fold.origin:
@@ -397,49 +461,57 @@ def build_fold_feature_batches(
     return training, validation
 
 
-def build_origin_feature_batch(
-    frames: dict[str, pd.DataFrame], origin: pd.Timestamp, spec: FeatureSpec
-) -> FeatureBatch:
-    """Build one supervised direct-horizon batch anchored at an observed origin."""
+def project_benchmark_request(
+    frames: dict[str, pd.DataFrame],
+    origin: pd.Timestamp,
+    spec: FeatureSpec,
+    *,
+    snapshot_id: str,
+    data_source: str,
+    supported_series: tuple[tuple[int, str], ...] | None = None,
+) -> ForecastRequest:
+    """Project raw benchmark frames to a validated request for this specification."""
 
-    normalized_origin = pd.Timestamp(origin).normalize()
-    train_source = frames["train.csv"]
-    transaction_source = frames["transactions.csv"]
-    train = (
-        train_source
-        if pd.api.types.is_datetime64_any_dtype(train_source[TIME_COLUMN])
-        else _parse_dates(train_source, "train.csv")
+    return project_snapshot(
+        frames,
+        snapshot_id=snapshot_id,
+        data_source=data_source,
+        origin=pd.Timestamp(origin).normalize(),
+        policy=spec.availability_policy,
+        context_days=spec.context_days,
+        supported_series=supported_series,
+        horizon=spec.horizon,
     )
-    transactions = (
-        transaction_source
-        if pd.api.types.is_datetime64_any_dtype(transaction_source[TIME_COLUMN])
-        else _parse_dates(transaction_source, "transactions.csv")
-    )
-    target_dates = pd.date_range(
-        normalized_origin + pd.offsets.Day(1), periods=spec.horizon, freq="D"
-    )
-    target = train.loc[train[TIME_COLUMN].isin(target_dates)].copy()
-    sales_lookback = max(max(spec.sales_lags), max(spec.sales_windows))
-    history = train.loc[
-        train[TIME_COLUMN].between(
-            normalized_origin - pd.offsets.Day(sales_lookback - 1), normalized_origin
-        )
-    ].copy()
-    transaction_lookback = max(max(spec.transaction_lags), max(spec.transaction_windows))
-    transaction_history = transactions.loc[
-        transactions[TIME_COLUMN].between(
-            normalized_origin - pd.offsets.Day(transaction_lookback - 1), normalized_origin
-        )
-    ].copy()
-    return build_feature_batch(
-        history,
-        target,
-        frames["stores.csv"],
-        frames["oil.csv"],
-        frames["holidays_events.csv"],
-        transaction_history,
-        normalized_origin,
+
+
+def build_origin_feature_batch(
+    frames: dict[str, pd.DataFrame],
+    origin: pd.Timestamp,
+    spec: FeatureSpec,
+    *,
+    snapshot_id: str,
+    data_source: str,
+    supported_series: tuple[tuple[int, str], ...] | None = None,
+) -> FeatureBatch:
+    """Build one supervised batch: request features, then a keyed label join."""
+
+    request = project_benchmark_request(
+        frames,
+        origin,
         spec,
+        snapshot_id=snapshot_id,
+        data_source=data_source,
+        supported_series=supported_series,
+    )
+    batch = build_request_feature_batch(
+        request,
+        spec,
+        supported_series=request.series_keys if supported_series is None else supported_series,
+    )
+    labels = benchmark_labels(frames["train.csv"], request.target_dates)
+    labeled = attach_labels(batch.frame, labels[["target_date", "store_nbr", "family", "sales"]])
+    return FeatureBatch(
+        labeled, batch.numeric_features, batch.categorical_features, batch.origin, spec
     )
 
 
@@ -499,8 +571,7 @@ def model_input_contract(batch: FeatureBatch) -> dict[str, Any]:
         "is_payday",
         "day_of_year_sin",
         "day_of_year_cos",
-        "oil_target",
-        "oil_target_missing",
+        *(("oil_target", "oil_target_missing") if batch.spec.policy.includes_oil else ()),
         "holiday_event_count",
         "is_holiday_event",
         "is_work_day",
@@ -514,6 +585,8 @@ def model_input_contract(batch: FeatureBatch) -> dict[str, Any]:
         if column.startswith(("sales_", "transactions_"))
     ]
     payload = {
+        "availability_policy": batch.spec.availability_policy,
+        "input_contract_version": batch.spec.policy.input_contract_version,
         "row_key": [*SERIES_KEYS, "forecast_origin", "target_date", "horizon"],
         "target": TARGET_COLUMN,
         "target_dtype": "float32_non_negative",
@@ -557,6 +630,8 @@ def feature_manifest(
     """Build small feature metadata without exporting the transformed panel."""
 
     payload = {
+        "availability_policy": spec.availability_policy,
+        "input_contract_version": spec.policy.input_contract_version,
         "feature_spec": spec.to_dict(),
         "feature_spec_sha256": spec.sha256,
         "split_manifest_sha256": split_sha256,
