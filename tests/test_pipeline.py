@@ -179,3 +179,40 @@ def test_pre_bundle_completed_records_stay_verifiable_but_not_selectable(
     assert validate_manifest({**manifest, "artifacts": legacy}, successful=True)
     with pytest.raises(ValueError, match="producer-required"):
         validate_manifest({**manifest, "artifacts": base}, successful=True)
+
+
+def test_abandoned_running_record_is_marked_interrupted_without_exit_time(
+    synthetic_config: ProjectConfig,
+) -> None:
+    import os
+
+    from retail_forecast.artifacts import allocate_run, record_interruption
+
+    run = allocate_run(synthetic_config, kind="training")
+    run_json = run.root / "run.json"
+    with pytest.raises(ValueError, match="changed recently"):
+        record_interruption(run.root)
+    old = run_json.stat().st_mtime - 7200
+    os.utime(run_json, (old, old))
+    before = {p: p.read_bytes() for p in run.root.rglob("*") if p.name != "run.json"}
+    manifest = record_interruption(run.root)
+    assert manifest["state"] == "INTERRUPTED" and manifest["error_code"] == "INTERRUPTED"
+    assert manifest["finished_at_utc"] is None
+    assert not (run.root / "COMPLETE.json").exists()
+    assert {p: p.read_bytes() for p in before} == before
+    with pytest.raises(ValueError):
+        read_completed_run(run.root)
+    with pytest.raises(ValueError, match="Only a RUNNING"):
+        record_interruption(run.root, min_idle_seconds=0)
+    with pytest.raises(ValueError, match="immutable or context is stale"):
+        from retail_forecast.artifacts import ensure_running
+
+        ensure_running(run)
+
+
+def test_completed_runs_cannot_be_marked_interrupted(synthetic_config: ProjectConfig) -> None:
+    from retail_forecast.artifacts import record_interruption
+
+    trained = train(synthetic_config, model_id=SEASONAL)
+    with pytest.raises(ValueError, match="Only a RUNNING"):
+        record_interruption(Path(trained["run_dir"]), min_idle_seconds=0)

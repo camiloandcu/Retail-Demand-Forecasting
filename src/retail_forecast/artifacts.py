@@ -391,3 +391,33 @@ def run_result(run: RunContext) -> dict[str, Any]:
             entry["path"]: str(run.root / entry["path"]) for entry in run.manifest["artifacts"]
         },
     }
+
+
+def record_interruption(run_dir: Path, *, min_idle_seconds: float = 3600.0) -> dict[str, Any]:
+    """Mark an abandoned RUNNING record INTERRUPTED without inventing an exit time.
+
+    Only an operator calls this, for a run whose process is known to be gone. The
+    idle guard refuses records whose manifest changed recently, so a live writer is
+    not cut off by mistake. Outputs are preserved; no completion marker is written,
+    so the run stays unconsumable. A live owner that resumes writing fails its next
+    `ensure_running` check.
+    """
+    import time
+
+    root = _trusted_path(Path(run_dir))
+    path = safe_path(root, "run.json", regular=True)
+    manifest = validate_manifest(read_json(path))
+    if root.name != manifest["run_id"]:
+        raise ValueError("Run directory identity mismatch")
+    if manifest["state"] != "RUNNING":
+        raise ValueError("Only a RUNNING record can be recorded as interrupted")
+    if (root / "COMPLETE.json").exists() or (root / "COMPLETE.json").is_symlink():
+        raise ValueError("A run with a completion marker is not interrupted")
+    idle = time.time() - path.stat().st_mtime
+    if idle < min_idle_seconds:
+        raise ValueError("Run record changed recently; its process may still be running")
+    terminal = {**manifest, "state": "INTERRUPTED", "error_code": "INTERRUPTED"}
+    # finished_at_utc stays null: the original exit time is unknown.
+    validate_manifest(terminal)
+    write_json(path, terminal)
+    return terminal

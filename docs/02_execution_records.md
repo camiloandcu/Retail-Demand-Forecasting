@@ -54,6 +54,17 @@ changed bytes and incompatible identity cause verification failure. A completed 
 is immutable through the writer API. A partial directory is useful for investigation,
 but adding a completion marker manually does not make it valid evidence.
 
+If a process died and left its record `RUNNING`, an operator can record that state
+once the process is known to be gone:
+
+```bash
+uv run --frozen retail-forecast record-interruption --config configs/smoke.yaml --run <run-id>
+```
+
+The record becomes `INTERRUPTED` with no finish time, because the real exit time is
+unknown. Its files are kept, and it never becomes consumable. The command refuses
+completed runs and records changed in the last hour (`--min-idle-minutes`).
+
 ```python
 from pathlib import Path
 from retail_forecast.artifacts import read_completed_run

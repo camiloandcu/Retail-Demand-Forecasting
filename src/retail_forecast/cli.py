@@ -9,6 +9,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from retail_forecast.artifacts import record_interruption, resolve_run
 from retail_forecast.bundles import parse_bundle_ref
 from retail_forecast.capsules import export_inference_capsule
 from retail_forecast.config import load_config
@@ -27,7 +28,13 @@ from retail_forecast.pipeline import (
 from retail_forecast.versions import capture_versions
 
 PRODUCERS = {"train", "evaluate", "predict", "smoke", "baseline", "request", "compare"}
-COMMANDS = ["fixture", "validate", "export-capsule", *sorted(PRODUCERS)]
+COMMANDS = [
+    "fixture",
+    "validate",
+    "export-capsule",
+    "record-interruption",
+    *sorted(PRODUCERS),
+]
 
 
 def _date(value: str) -> date:
@@ -50,6 +57,14 @@ def _parser() -> argparse.ArgumentParser:
             command.add_argument(
                 "--resume-from",
                 help="Explicit checkpoint source; current adapters reject continuation",
+            )
+        if name == "record-interruption":
+            command.add_argument("--run", required=True, help="Abandoned RUNNING run ID")
+            command.add_argument(
+                "--min-idle-minutes",
+                type=float,
+                default=60.0,
+                help="Refuse records changed more recently than this",
             )
         if name == "export-capsule":
             command.add_argument(
@@ -102,6 +117,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = {"fixture_dir": str(write_synthetic_dataset(config))}
         elif args.command == "validate":
             result = validate_dataset(config).to_dict()
+        elif args.command == "record-interruption":
+            manifest = record_interruption(
+                resolve_run(config, args.run), min_idle_seconds=args.min_idle_minutes * 60
+            )
+            result = {"run_id": manifest["run_id"], "state": manifest["state"]}
         elif args.command == "export-capsule":
             ref = parse_bundle_ref(args.bundle, artifacts_dir=config.paths.artifacts_dir)
             if ref.kind != "run":
