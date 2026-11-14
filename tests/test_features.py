@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from retail_forecast.availability import resolve_policy
+from retail_forecast.availability import PolicyMismatchError, resolve_policy
 from retail_forecast.config import ProjectConfig
 from retail_forecast.data import load_frames
 from retail_forecast.data_contracts import ForecastRequestError
@@ -136,8 +136,10 @@ def test_feature_spec_identity_separates_policies() -> None:
 def test_request_and_spec_policy_must_match(smoke_feature_data) -> None:
     frames, folds, _ = smoke_feature_data
     request = project_benchmark_request(frames, folds[0].origin, FeatureSpec("asof_v1"), **IDENTITY)
-    with pytest.raises(FeatureContractError, match="POLICY_MISMATCH"):
-        build_request_feature_batch(request, FeatureSpec("competition_v1"))
+    with pytest.raises(PolicyMismatchError, match="POLICY_MISMATCH"):
+        build_request_feature_batch(
+            request, FeatureSpec("competition_v1"), supported_series=request.series_keys
+        )
 
 
 def test_explicit_future_history_is_rejected(smoke_feature_data) -> None:

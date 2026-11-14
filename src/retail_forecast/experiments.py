@@ -17,7 +17,11 @@ from retail_forecast.artifacts import (
     write_json_artifact,
     write_run_artifact,
 )
-from retail_forecast.availability import require_same_policy, resolve_policy
+from retail_forecast.availability import (
+    PolicyMismatchError,
+    require_same_policy,
+    resolve_policy,
+)
 from retail_forecast.baseline import (
     fit_seasonal_average,
     fit_seasonal_naive,
@@ -246,7 +250,7 @@ def run_baseline_experiments(
     folds = make_rolling_origin_folds(config, train["date"])
     policy = resolve_policy(config.data.availability_policy)
     if run.manifest["availability_policy"] != policy.name:
-        raise ValueError("POLICY_MISMATCH: run identity differs from configured policy")
+        raise PolicyMismatchError("POLICY_MISMATCH: run identity differs from configured policy")
     spec = FeatureSpec(policy.name, horizon=config.forecast.horizon)
     snapshot_id = run.manifest["snapshot_id"]
     supported_series = tuple(
@@ -269,7 +273,9 @@ def run_baseline_experiments(
 
     for fold in folds:
         request = project_benchmark_request(feature_frames, fold.origin, spec, **identity)
-        validation_batch = build_request_feature_batch(request, spec)
+        validation_batch = build_request_feature_batch(
+            request, spec, supported_series=supported_series
+        )
         if feature_contract is None:
             feature_contract = {
                 "count": validation_batch.feature_count,

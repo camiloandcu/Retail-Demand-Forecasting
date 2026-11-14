@@ -55,7 +55,9 @@ def test_minimal_asof_request_needs_no_benchmark_only_inputs(frames) -> None:
     request = request_for(minimal)
     assert request.competition_oil is None
     assert "sales" not in request.future_plan.columns
-    batch = build_request_feature_batch(request, FeatureSpec("asof_v1"))
+    batch = build_request_feature_batch(
+        request, FeatureSpec("asof_v1"), supported_series=request.series_keys
+    )
     assert len(batch.frame) == len(request.series_keys) * 16
     assert "sales" not in batch.frame.columns
 
@@ -155,14 +157,18 @@ def test_missing_history_stays_missing(frames) -> None:
     gap = request.sales_history["date"].eq(ORIGIN)
     sparse = replace(request, sales_history=request.sales_history.loc[~gap].reset_index(drop=True))
     validate_forecast_request(sparse, supported_series=sparse.series_keys)
-    batch = build_request_feature_batch(sparse, FeatureSpec("asof_v1"))
+    batch = build_request_feature_batch(
+        sparse, FeatureSpec("asof_v1"), supported_series=sparse.series_keys
+    )
     assert batch.frame["sales_origin_lag_1"].isna().all()
     assert batch.frame["sales_origin_lag_1_missing"].eq(1).all()
 
 
 def test_label_join_is_keyed(frames) -> None:
     request = request_for(frames)
-    batch = build_request_feature_batch(request, FeatureSpec("asof_v1"))
+    batch = build_request_feature_batch(
+        request, FeatureSpec("asof_v1"), supported_series=request.series_keys
+    )
     labels = benchmark_labels(frames["train.csv"], request.target_dates)
     ordered = attach_labels(batch.frame, labels)
     shuffled = attach_labels(batch.frame, labels.sample(frac=1.0, random_state=7))
@@ -171,3 +177,58 @@ def test_label_join_is_keyed(frames) -> None:
         attach_labels(batch.frame, pd.concat([labels, labels.head(1)]))
     with pytest.raises(ForecastRequestError, match="labels.missing"):
         attach_labels(batch.frame, labels.iloc[1:])
+
+
+@pytest.mark.parametrize("value", ["event", "Event ", "Festival"])
+def test_unknown_calendar_type_cannot_bypass_event_exclusion(frames, value) -> None:
+    request = request_for(frames)
+    calendar = request.calendar.copy()
+    calendar.loc[calendar.index[0], "type"] = value
+    assert code_of(replace(request, calendar=calendar)) == "SCHEMA_INVALID"
+
+
+def test_duplicate_calendar_source_row_is_rejected(frames) -> None:
+    request = request_for(frames)
+    calendar = pd.concat([request.calendar, request.calendar.head(1)], ignore_index=True)
+    assert code_of(replace(request, calendar=calendar)) == "SCHEMA_INVALID"
+
+
+def test_feature_builder_validates_directly_constructed_requests(frames) -> None:
+    request = request_for(frames)
+    bad = request.sales_history.copy()
+    bad["sales"] = bad["sales"].astype(float)
+    bad.loc[bad.index[0], "sales"] = np.inf
+    with pytest.raises(ForecastRequestError) as error:
+        build_request_feature_batch(
+            replace(request, sales_history=bad),
+            FeatureSpec("asof_v1"),
+            supported_series=request.series_keys,
+        )
+    assert error.value.code == "NONFINITE_VALUE"
+
+
+def test_projection_enforces_declared_minimum_context(frames) -> None:
+    with pytest.raises(ForecastRequestError) as error:
+        project_snapshot(
+            frames,
+            snapshot_id="b" * 64,
+            data_source="synthetic",
+            origin=ORIGIN,
+            policy="asof_v1",
+            context_days=56,
+            min_context_days=56,
+        )
+    assert error.value.code == "HISTORY_INSUFFICIENT"
+
+
+def test_error_key_text_is_bounded(frames) -> None:
+    request = request_for(frames)
+    long = "X" * 5000
+    history = request.sales_history.copy()
+    history["family"] = long
+    with pytest.raises(ForecastRequestError) as error:
+        validate_forecast_request(
+            replace(request, sales_history=pd.concat([history, history.head(1)])),
+            supported_series=request.series_keys,
+        )
+    assert len(str(error.value)) < 300

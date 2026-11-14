@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Any, Final
 
-from retail_forecast.availability import resolve_policy
+from retail_forecast.availability import PolicyMismatchError, resolve_policy
 from retail_forecast.io_utils import canonical_json
 
 DATASET_CARD_SCHEMA_VERSION: Final = 1
@@ -31,22 +32,10 @@ MISSINGNESS_FIELDS: Final = (
     (EDA_REF, "observations.transaction_store_date_coverage"),
     (EDA_REF, "observations.oil_missing_values"),
 )
+LOCAL_PATH: Final = re.compile(
+    r"(?<![\w.])/(home|tmp|mnt|content|Users|root|var|opt)/|[A-Za-z]:[\\/]|\\\\Users"
+)
 FORBIDDEN_KEYS: Final = frozenset({"rmsle", "mae", "wape", "bias", "y_pred", "prediction"})
-
-POLICY_ASSUMPTIONS: Final = {
-    "asof_v1": [
-        "Sales and transactions are used only up to the forecast origin.",
-        "Oil is excluded entirely; no oil-derived field is produced.",
-        "Calendar rows of type Event are excluded, including scheduled ones.",
-        "Other calendar rows are treated as scheduled; calendar vintages are unavailable.",
-        "Historical onpromotion values proxy an unavailable promotion-plan vintage.",
-        "Store metadata is assumed unchanged; metadata vintages are unavailable.",
-    ],
-    "competition_v1": [
-        "Kaggle-supplied target-date oil and the full holiday/event table are used.",
-        "This is a competition interface, not an operational availability regime.",
-    ],
-}
 
 
 def _resolve(document: dict[str, Any], field: str) -> Any:
@@ -65,7 +54,7 @@ def build_data_card(
 
     resolved = resolve_policy(policy)
     if snapshot["availability_policy"] != resolved.name:
-        raise ValueError("POLICY_MISMATCH: card policy differs from snapshot")
+        raise PolicyMismatchError("POLICY_MISMATCH: card policy differs from snapshot")
     if eda_summary["source"] != snapshot["data_source"]:
         raise ValueError("Card EDA summary source differs from snapshot")
     documents = {SNAPSHOT_REF: snapshot, EDA_REF: eda_summary}
@@ -101,7 +90,7 @@ def build_data_card(
         ],
         "availability_policy": resolved.name,
         "input_contract_version": resolved.input_contract_version,
-        "assumptions": POLICY_ASSUMPTIONS[resolved.name],
+        "assumptions": list(resolved.assumptions),
         "intended_use": (
             "Academic and portfolio evaluation of 16-day store-family sales forecasts."
         ),
@@ -129,17 +118,22 @@ def _rights(synthetic: bool) -> dict[str, Any]:
         "status": "restricted_noncommercial",
         "primary_source_url": RULES_URL,
         "checked_date": RIGHTS_CHECKED,
+        "source_note": "Rules sections 7-8 text supplied by the project owner from the "
+        "competition rules page on the checked date; the page did not render for automated "
+        "retrieval.",
         "terms": [
-            "Rule 7A: use permitted for the competition, Kaggle forums, academic research "
-            "and education, and other non-commercial purposes.",
-            "Rule 7B: no transmission, duplication, publication or redistribution of the data "
-            "to non-participants; no license or ownership is granted.",
-            "Rule 8B: sharing code based on the data outside Kaggle is restricted during the "
-            "competition unless the competition-specific rules permit it.",
+            "Rule 7A: non-commercial use only, including the competition, Kaggle forums, "
+            "academic research and education.",
+            "Rule 7B: no transmission, duplication, publication or redistribution of the "
+            "Competition Data to non-participants.",
+            "Rule 8B: public code sharing is permitted; code shared must also be shared on "
+            "the competition's Kaggle forum or notebooks under a commercially unrestricted "
+            "OSI-approved license.",
         ],
         "unknowns": [
-            "Competition-specific rules were not reviewed; they may modify rules 7 and 8.",
-            "Whether rule 8B applies to this ongoing practice competition is unresolved.",
+            "Competition-specific rules outside sections 7-8 were not reviewed.",
+            "Whether a public non-Kaggle repository alone satisfies rule 8B is a project "
+            "owner decision, not established here.",
             "Whether derived aggregate tables or figures count as publishing the data is "
             "not stated; raw rows stay local and are never displayed.",
         ],
@@ -164,7 +158,7 @@ def validate_data_card(
         if "ref" in entry and _resolve(documents[entry["ref"]], entry["field"]) != entry["value"]:
             raise ValueError(f"Card value differs from its manifest: {entry['field']}")
     text = canonical_json(card).decode()
-    if "/home/" in text or "\\Users\\" in text or "/content/" in text:
+    if LOCAL_PATH.search(text):
         raise ValueError("Card contains a local path")
 
     def keys(value: Any) -> set[str]:

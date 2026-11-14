@@ -50,6 +50,8 @@ def test_stale_or_tampered_card_is_rejected(card_inputs) -> None:
     "mutation",
     [
         lambda card: card.update(note="/home/someone/data/raw/train.csv"),
+        lambda card: card.update(note="/tmp/run/inputs/train.csv"),
+        lambda card: card.update(note="C:\\data\\train.csv"),
         lambda card: card.update(scores={"rmsle": 0.4}),
         lambda card: card["rights"].update(status="granted"),
     ],
@@ -70,4 +72,5 @@ def test_kaggle_rights_record_restrictions_and_unknowns(card_inputs) -> None:
     assert rights["status"] == "restricted_noncommercial"
     assert rights["primary_source_url"].startswith("https://www.kaggle.com/")
     assert any("7B" in term for term in rights["terms"])
+    assert "owner" in rights["source_note"]
     assert rights["unknowns"]

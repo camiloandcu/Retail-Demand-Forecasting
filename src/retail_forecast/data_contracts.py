@@ -30,6 +30,10 @@ ERROR_CODES: Final = frozenset(
     }
 )
 CALENDAR_LOCALES: Final = frozenset({"National", "Regional", "Local"})
+CALENDAR_TYPES: Final = frozenset(
+    {"Holiday", "Event", "Additional", "Transfer", "Bridge", "Work Day"}
+)
+MAX_KEY_TEXT: Final = 64
 
 TABLE_COLUMNS: Final[dict[str, tuple[str, ...]]] = {
     "sales_history": ("date", "store_nbr", "family", "sales", "onpromotion"),
@@ -44,6 +48,7 @@ TABLE_KEYS: Final[dict[str, tuple[str, ...]]] = {
     "transactions_history": ("date", "store_nbr"),
     "future_plan": ("date", "store_nbr", "family"),
     "stores": ("store_nbr",),
+    "calendar": ("date", "type", "locale", "locale_name", "description"),
     "competition_oil": ("date",),
 }
 TEXT_COLUMNS: Final = frozenset(
@@ -97,6 +102,8 @@ def _safe_key(row: pd.Series, columns: Iterable[str]) -> str:
         value = row[column]
         if isinstance(value, pd.Timestamp):
             value = value.date().isoformat()
+        text = str(value)
+        value = text if len(text) <= MAX_KEY_TEXT else f"{text[:MAX_KEY_TEXT]}..."
         parts.append(f"{column}={value}")
     return ",".join(parts)
 
@@ -199,6 +206,8 @@ def validate_forecast_request(
         _check_table("competition_oil", request.competition_oil)
     if not calendar["locale"].isin(CALENDAR_LOCALES).all():
         raise ForecastRequestError("SCHEMA_INVALID", "calendar.locale")
+    if not calendar["type"].isin(CALENDAR_TYPES).all():
+        raise ForecastRequestError("SCHEMA_INVALID", "calendar.type")
 
     for name, frame in (("sales_history", sales), ("transactions_history", transactions)):
         late = frame["date"] > origin
@@ -254,6 +263,7 @@ def project_snapshot(
     origin: pd.Timestamp,
     policy: str,
     context_days: int,
+    min_context_days: int = 1,
     series_keys: tuple[SeriesKey, ...] | None = None,
     supported_series: Iterable[SeriesKey] | None = None,
     horizon: int = PROJECT_HORIZON,
@@ -309,7 +319,7 @@ def project_snapshot(
         ].reset_index(drop=True),
         competition_oil=oil,
     )
-    validate_forecast_request(request, supported_series=known)
+    validate_forecast_request(request, supported_series=known, min_context_days=min_context_days)
     return request
 
 

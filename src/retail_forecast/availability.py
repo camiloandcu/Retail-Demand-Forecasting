@@ -21,14 +21,35 @@ class AvailabilityPolicy:
     name: str
     includes_oil: bool
     excluded_calendar_types: frozenset[str]
+    assumptions: tuple[str, ...]
     input_contract_version: int = INPUT_CONTRACT_VERSION
 
 
 POLICIES: Final[dict[str, AvailabilityPolicy]] = {
     # Historical benchmark interface: realized target-date oil and the full table.
-    "competition_v1": AvailabilityPolicy("competition_v1", True, frozenset()),
+    "competition_v1": AvailabilityPolicy(
+        "competition_v1",
+        True,
+        frozenset(),
+        (
+            "Kaggle-supplied target-date oil and the full holiday/event table are used.",
+            "This is a competition interface, not an operational availability regime.",
+        ),
+    ),
     # Operational simulation: no oil and no realized/unscheduled Event rows.
-    "asof_v1": AvailabilityPolicy("asof_v1", False, frozenset({"Event"})),
+    "asof_v1": AvailabilityPolicy(
+        "asof_v1",
+        False,
+        frozenset({"Event"}),
+        (
+            "Sales and transactions are used only up to the forecast origin.",
+            "Oil is excluded entirely; no oil-derived field is produced.",
+            "Calendar rows of type Event are excluded, including scheduled ones.",
+            "Other calendar rows are treated as scheduled; calendar vintages are unavailable.",
+            "Historical onpromotion values proxy an unavailable promotion-plan vintage.",
+            "Store metadata is assumed unchanged; metadata vintages are unavailable.",
+        ),
+    ),
 }
 
 

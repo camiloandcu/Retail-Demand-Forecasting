@@ -11,13 +11,14 @@ from typing import Any, Final
 import numpy as np
 import pandas as pd
 
-from retail_forecast.availability import AvailabilityPolicy, resolve_policy
+from retail_forecast.availability import AvailabilityPolicy, PolicyMismatchError, resolve_policy
 from retail_forecast.config import PROJECT_HORIZON
 from retail_forecast.data_contracts import (
     ForecastRequest,
     attach_labels,
     benchmark_labels,
     project_snapshot,
+    validate_forecast_request,
 )
 from retail_forecast.io_utils import write_json
 from retail_forecast.splits import RollingOriginFold, SplitContractError
@@ -330,11 +331,24 @@ def build_store_holiday_calendar(
     return calendar
 
 
-def build_request_feature_batch(request: ForecastRequest, spec: FeatureSpec) -> FeatureBatch:
-    """Build label-free direct rows from a validated request under its policy."""
+def build_request_feature_batch(
+    request: ForecastRequest,
+    spec: FeatureSpec,
+    *,
+    supported_series: tuple[tuple[int, str], ...],
+    min_context_days: int = 1,
+) -> FeatureBatch:
+    """Validate a request, then build label-free direct rows under its policy.
+
+    Validation runs here as well as at projection so that callers constructing a
+    ForecastRequest directly (API, bundles) cannot bypass the input contract.
+    """
 
     if request.availability_policy != spec.availability_policy:
-        raise FeatureContractError("POLICY_MISMATCH: request and feature spec policies differ")
+        raise PolicyMismatchError("POLICY_MISMATCH: request and feature spec policies differ")
+    validate_forecast_request(
+        request, supported_series=supported_series, min_context_days=min_context_days
+    )
     if request.horizon != spec.horizon:
         raise FeatureContractError("Request horizon differs from the feature specification")
     policy = spec.policy
@@ -401,7 +415,7 @@ def build_request_feature_batch(request: ForecastRequest, spec: FeatureSpec) -> 
         frame = frame.merge(oil_target, on="target_date", how="left", validate="many_to_one")
         frame["oil_target_missing"] = frame["oil_target"].isna().astype("int8")
     elif request.competition_oil is not None:
-        raise FeatureContractError("POLICY_MISMATCH: oil supplied to a policy that excludes it")
+        raise PolicyMismatchError("POLICY_MISMATCH: oil supplied to a policy that excludes it")
 
     holiday_calendar = build_store_holiday_calendar(
         stores,
@@ -489,7 +503,11 @@ def build_origin_feature_batch(
         data_source=data_source,
         supported_series=supported_series,
     )
-    batch = build_request_feature_batch(request, spec)
+    batch = build_request_feature_batch(
+        request,
+        spec,
+        supported_series=request.series_keys if supported_series is None else supported_series,
+    )
     labels = benchmark_labels(frames["train.csv"], request.target_dates)
     labeled = attach_labels(batch.frame, labels[["target_date", "store_nbr", "family", "sales"]])
     return FeatureBatch(

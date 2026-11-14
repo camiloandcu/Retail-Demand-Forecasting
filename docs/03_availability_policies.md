@@ -55,6 +55,10 @@ Missing history stays missing and is flagged; it is never filled with zero sales
 A valid `asof_v1` request needs no `test.csv`, `sample_submission.csv`, oil or
 future labels. The benchmark projection builds requests from the seven competition
 files; labels are joined afterward by store, family and date for scoring.
+Requests carry the 56 days of history the features need. The seasonal comparators
+read the same window, so a series with gaps in those 56 days has fewer same-weekday
+observations. The Kaggle panel has a row for every series on every date except
+December 25, so seasonal predictions there match the full-history implementation.
 
 ## Outputs
 
