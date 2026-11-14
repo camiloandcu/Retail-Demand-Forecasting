@@ -32,8 +32,8 @@ make smoke
 ```
 
 `make smoke` creates a tiny deterministic synthetic dataset, evaluates the
-seasonal-naive baseline, trains its inference artifact, and writes a submission
-shaped file. It does not download Kaggle data and its outputs are not project
+seasonal-naive baseline, publishes and reloads its verified model bundle, and
+writes a keyed submission-shaped file. It does not download Kaggle data and its outputs are not project
 results.
 
 ## Real data
@@ -61,16 +61,19 @@ make baseline CONFIG=configs/smoke.yaml
 ```
 
 ```bash
-make train
+make train MODEL_ID=lightgbm_global
 make evaluate
-make predict TRAINING_RUN=<training-run-id>
+make predict BUNDLE=<training-run-id>:models/lightgbm_global/final
 ```
 
-Copy the training run ID from its returned JSON before prediction. Every result
-has its own verified run directory; see [execution records](docs/02_execution_records.md).
+Training publishes a verified bundle. Prediction loads only the bundle you name,
+in a fresh process, without refitting or network access. Copy the `bundle` value
+from the training result. Every result has its own verified run directory; see
+[execution records](docs/02_execution_records.md) and
+[model bundles](docs/04_model_bundles.md).
 
 These commands default to `configs/full.yaml`. Override the configuration with
-`make train CONFIG=configs/smoke.yaml` when needed.
+`CONFIG=configs/smoke.yaml` when needed.
 
 ## Repository contract
 

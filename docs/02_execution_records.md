@@ -14,23 +14,25 @@ uv run --frozen retail-forecast baseline --config configs/smoke.yaml --no-tracki
 The baseline command requires the `models` and `notebook` extras; `make baseline`
 selects these automatically. Optional tracking uses only the current run's store.
 Python callers and notebook 03 can pass `tracking=False` to disable it explicitly.
-Seasonal-naive prediction works without MLflow. The experiment's LightGBM fold
-files are not yet complete serving bundles or resumable training checkpoints.
+Prediction works without MLflow. The `baseline` command's LightGBM fold files are
+research outputs, not loadable bundles; `compare` re-emits the same comparators
+through verified bundles (see [model bundles](04_model_bundles.md)).
 
-For standalone seasonal-naive training, first prepare the chosen input files.
+For standalone training and prediction, first prepare the chosen input files.
 Synthetic inputs need no competition credentials:
 
 ```bash
 uv run --frozen retail-forecast fixture --config configs/smoke.yaml
-make train CONFIG=configs/smoke.yaml
-# Copy run_id from the returned JSON; do not choose the newest directory.
-make predict CONFIG=configs/smoke.yaml TRAINING_RUN=<training-run-id>
+make train CONFIG=configs/smoke.yaml MODEL_ID=seasonal_naive_7d
+# Copy "bundle" from the returned JSON; do not choose the newest directory.
+make predict CONFIG=configs/smoke.yaml BUNDLE=<training-run-id>:models/seasonal_naive_7d/final
 ```
 
-Training and prediction use separate execution identities. Prediction validates the
-selected source's completion, data/config compatibility and declared model before
-reading it. Evaluation independently fits its rolling folds. It does not evaluate
-a final model against its own training data.
+Training and prediction use separate execution identities. Prediction verifies the
+selected training run's completion and the bundle's files, policy, mode and source
+before loading it. Pre-bundle `models/seasonal_naive.json` outputs from earlier
+versions are not bundles and cannot be selected. Evaluation independently fits its
+rolling folds. It does not evaluate a final model against its own training data.
 
 Producing commands accept `--run-id` for a new explicitly named execution; existing
 IDs are never overwritten. `--resume-from` is a separate continuation request. Current
@@ -51,6 +53,17 @@ checksums is readable as a completed result. Missing or failed output, interrupt
 changed bytes and incompatible identity cause verification failure. A completed run
 is immutable through the writer API. A partial directory is useful for investigation,
 but adding a completion marker manually does not make it valid evidence.
+
+If a process died and left its record `RUNNING`, an operator can record that state
+once the process is known to be gone:
+
+```bash
+uv run --frozen retail-forecast record-interruption --config configs/smoke.yaml --run <run-id>
+```
+
+The record becomes `INTERRUPTED` with no finish time, because the real exit time is
+unknown. Its files are kept, and it never becomes consumable. The command refuses
+completed runs and records changed in the last hour (`--min-idle-minutes`).
 
 ```python
 from pathlib import Path

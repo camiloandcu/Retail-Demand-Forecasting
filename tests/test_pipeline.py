@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from retail_forecast.artifacts import read_completed_run
+from retail_forecast.bundles import BundleError
 from retail_forecast.config import ProjectConfig
 from retail_forecast.pipeline import evaluate, predict, smoke, train
 
@@ -54,57 +55,88 @@ def test_concurrent_smoke_preserves_shared_fixture_and_legacy_outputs(
         assert manifest["state"] == "SUCCEEDED"
 
 
-def test_prediction_requires_explicit_verified_parent(synthetic_config: ProjectConfig) -> None:
-    with pytest.raises(ValueError, match="TRAINING_RUN_REQUIRED"):
+SEASONAL = "seasonal_naive_7d"
+
+
+def test_smoke_publishes_a_seasonal_bundle_forecast_and_keyed_export(
+    synthetic_config: ProjectConfig,
+) -> None:
+    result = smoke(synthetic_config)
+    manifest = read_completed_run(Path(result["run_dir"]))
+    kinds = {entry["kind"] for entry in manifest["artifacts"]}
+    assert {"bundle_manifest", "bundle_state", "forecast", "submission"} <= kinds
+    forecast = pd.read_csv(result["forecast"])
+    assert forecast["bundle_id"].unique().tolist() == [result["bundle_id"]]
+    assert forecast["training_run_id"].unique().tolist() == [result["run_id"]]
+    assert forecast["prediction_run_id"].unique().tolist() == [result["run_id"]]
+    assert len(forecast) == 2 * 2 * 16
+
+
+def test_prediction_requires_explicit_bundle_and_model(synthetic_config: ProjectConfig) -> None:
+    with pytest.raises(ValueError, match="BUNDLE_REQUIRED"):
         predict(synthetic_config)
-    trained = train(synthetic_config)
-    result = predict(synthetic_config, training_run=trained["run_id"])
+    with pytest.raises(ValueError, match="MODEL_ID_REQUIRED"):
+        train(synthetic_config)
+    trained = train(synthetic_config, model_id=SEASONAL)
+    result = predict(synthetic_config, bundle=trained["bundle"], kaggle_submission=True)
     manifest = read_completed_run(Path(result["run_dir"]))
     assert manifest["parent_run_ids"] == [trained["run_id"]]
     assert len(pd.read_csv(result["submission"])) == 64
+    assert pd.read_csv(result["forecast"])["bundle_id"].unique().tolist() == [trained["bundle_id"]]
 
 
-def test_smoke_model_is_an_explicit_supported_parent(synthetic_config: ProjectConfig) -> None:
-    original = smoke(synthetic_config)
-    result = predict(synthetic_config, training_run=original["run_id"])
-    pd.testing.assert_frame_equal(
-        pd.read_csv(original["submission"]), pd.read_csv(result["submission"])
-    )
-
-
-def test_prediction_rejects_nontraining_corrupt_and_changed_input_parents(
-    synthetic_config: ProjectConfig,
-) -> None:
+def test_legacy_or_non_bundle_selection_is_rejected(synthetic_config: ProjectConfig) -> None:
     evaluated = evaluate(synthetic_config)
-    with pytest.raises(ValueError, match="TRAINING_RUN_KIND_INVALID"):
-        predict(synthetic_config, training_run=evaluated["run_id"])
-    trained = train(synthetic_config)
-    model_path = Path(trained["model"])
-    model_path.write_bytes(model_path.read_bytes() + b" ")
-    with pytest.raises(ValueError):
-        predict(synthetic_config, training_run=trained["run_id"])
-    trained = train(synthetic_config)
-    input_path = synthetic_config.paths.raw_data_dir / "train.csv"
-    frame = pd.read_csv(input_path)
-    frame.loc[0, "sales"] += 1
-    frame.to_csv(input_path, index=False)
-    with pytest.raises(ValueError, match="TRAINING_RUN_IDENTITY_MISMATCH"):
-        predict(synthetic_config, training_run=trained["run_id"])
+    with pytest.raises(BundleError, match="BUNDLE_MISSING"):
+        predict(synthetic_config, bundle=f"{evaluated['run_id']}:models/{SEASONAL}/final")
+    with pytest.raises(ValueError, match="BUNDLE_REQUIRED"):
+        predict(synthetic_config, bundle=evaluated["run_id"])
+    with pytest.raises(ValueError, match="BUNDLE_REQUIRED"):
+        predict(synthetic_config, bundle=f"{evaluated['run_id']}:models/seasonal_naive.json")
+    with pytest.raises(ValueError, match="Unknown model adapter"):
+        predict(synthetic_config, bundle=f"{evaluated['run_id']}:models/newest/final")
 
 
-def test_prediction_rejects_config_changes_and_incomplete_parent(
+def test_prediction_rejects_corrupt_and_incomplete_bundles(
     synthetic_config: ProjectConfig,
 ) -> None:
-    trained = train(synthetic_config)
+    trained = train(synthetic_config, model_id=SEASONAL)
+    state = Path(trained["bundle_dir"]) / "state/seasonal.json"
+    state.write_bytes(state.read_bytes() + b" ")
+    with pytest.raises(BundleError, match="BUNDLE_INVALID"):
+        predict(synthetic_config, bundle=trained["bundle"])
+    trained = train(synthetic_config, model_id=SEASONAL)
+    Path(trained["run_dir"], "COMPLETE.json").unlink()
+    with pytest.raises(BundleError, match="BUNDLE_INVALID"):
+        predict(synthetic_config, bundle=trained["bundle"])
+
+
+def test_prediction_accepts_new_inputs_but_rejects_another_policy(
+    synthetic_config: ProjectConfig,
+) -> None:
+    trained = train(synthetic_config, model_id=SEASONAL)
     changed = replace(
         synthetic_config,
         runtime=replace(synthetic_config.runtime, seed=synthetic_config.runtime.seed + 1),
     )
-    with pytest.raises(ValueError, match="TRAINING_RUN_IDENTITY_MISMATCH"):
-        predict(changed, training_run=trained["run_id"])
-    Path(trained["run_dir"], "COMPLETE.json").unlink()
-    with pytest.raises((ValueError, FileNotFoundError)):
-        predict(synthetic_config, training_run=trained["run_id"])
+    # A bundle serves later executions; identity comes from the bundle, not config equality.
+    assert predict(changed, bundle=trained["bundle"])["bundle_id"] == trained["bundle_id"]
+    asof = replace(
+        synthetic_config,
+        data=replace(synthetic_config.data, availability_policy="asof_v1"),
+    )
+    with pytest.raises(BundleError, match="POLICY_MISMATCH"):
+        predict(asof, bundle=trained["bundle"])
+
+
+def test_resume_is_explicit_and_unsupported_native_state_is_not_retrained(
+    synthetic_config: ProjectConfig,
+) -> None:
+    trained = train(synthetic_config, model_id=SEASONAL)
+    before = {p: p.read_bytes() for p in Path(trained["run_dir"]).rglob("*") if p.is_file()}
+    with pytest.raises(ValueError, match="RESUME_UNSUPPORTED"):
+        train(synthetic_config, model_id=SEASONAL, resume_from=trained["run_id"])
+    assert all(p.read_bytes() == content for p, content in before.items())
 
 
 def test_cli_result_verifier_rejects_corruption(
@@ -129,21 +161,58 @@ def test_cli_result_verifier_rejects_corruption(
         verifier.verify_result(result_path, mode="smoke", source="synthetic")
 
 
-def test_resume_is_explicit_and_unsupported_native_state_is_not_retrained(
+def test_pre_bundle_completed_records_stay_verifiable_but_not_selectable(
     synthetic_config: ProjectConfig,
 ) -> None:
-    trained = train(synthetic_config)
-    before = {p: p.read_bytes() for p in Path(trained["run_dir"]).rglob("*") if p.is_file()}
-    with pytest.raises(ValueError, match="RESUME_UNSUPPORTED"):
-        train(synthetic_config, resume_from=trained["run_id"])
-    assert all(p.read_bytes() == content for p, content in before.items())
+    from retail_forecast.artifact_schema import validate_manifest
+
+    manifest = read_completed_run(Path(train(synthetic_config, model_id=SEASONAL)["run_dir"]))
+    base = [
+        e for e in manifest["artifacts"] if e["kind"] in {"resolved_config", "dataset_manifest"}
+    ]
+    template = base[0]
+    legacy = [
+        *base,
+        {**template, "path": "models/seasonal_naive.json", "kind": "model"},
+        {**template, "path": "dataset_summary.json", "kind": "dataset_summary"},
+    ]
+    assert validate_manifest({**manifest, "artifacts": legacy}, successful=True)
+    with pytest.raises(ValueError, match="producer-required"):
+        validate_manifest({**manifest, "artifacts": base}, successful=True)
 
 
-def test_prediction_rejects_parent_from_another_policy(synthetic_config: ProjectConfig) -> None:
-    trained = train(synthetic_config)
-    asof = replace(
-        synthetic_config,
-        data=replace(synthetic_config.data, availability_policy="asof_v1"),
-    )
-    with pytest.raises(ValueError, match="TRAINING_RUN_IDENTITY_MISMATCH"):
-        predict(asof, training_run=trained["run_id"])
+def test_abandoned_running_record_is_marked_interrupted_without_exit_time(
+    synthetic_config: ProjectConfig,
+) -> None:
+    import os
+
+    from retail_forecast.artifacts import allocate_run, record_interruption
+
+    run = allocate_run(synthetic_config, kind="training")
+    run_json = run.root / "run.json"
+    with pytest.raises(ValueError, match="changed recently"):
+        record_interruption(run.root)
+    old = run_json.stat().st_mtime - 7200
+    os.utime(run_json, (old, old))
+    before = {p: p.read_bytes() for p in run.root.rglob("*") if p.name != "run.json"}
+    manifest = record_interruption(run.root)
+    assert manifest["state"] == "INTERRUPTED" and manifest["error_code"] == "INTERRUPTED"
+    assert manifest["finished_at_utc"] is None
+    assert not (run.root / "COMPLETE.json").exists()
+    assert {p: p.read_bytes() for p in before} == before
+    with pytest.raises(ValueError):
+        read_completed_run(run.root)
+    with pytest.raises(ValueError, match="Only a RUNNING"):
+        record_interruption(run.root, min_idle_seconds=0)
+    with pytest.raises(ValueError, match="immutable or context is stale"):
+        from retail_forecast.artifacts import ensure_running
+
+        ensure_running(run)
+
+
+def test_completed_runs_cannot_be_marked_interrupted(synthetic_config: ProjectConfig) -> None:
+    from retail_forecast.artifacts import record_interruption
+
+    trained = train(synthetic_config, model_id=SEASONAL)
+    with pytest.raises(ValueError, match="Only a RUNNING"):
+        record_interruption(Path(trained["run_dir"]), min_idle_seconds=0)

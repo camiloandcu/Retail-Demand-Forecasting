@@ -146,4 +146,4 @@ def test_pipeline_refuses_symlink_input_before_any_csv_read(
 
     monkeypatch.setattr(pd, "read_csv", guarded_read)
     with pytest.raises(ValueError, match="Unsafe dataset input"):
-        train(synthetic_config)
+        train(synthetic_config, model_id="seasonal_naive_7d")

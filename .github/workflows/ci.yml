@@ -41,3 +41,41 @@ jobs:
         run: uv run --frozen retail-forecast smoke --config configs/smoke.yaml > "${RUNNER_TEMP}/retail-smoke-result.json"
       - name: Verify returned completed submission
         run: uv run --frozen python scripts/verify_run_result.py "${RUNNER_TEMP}/retail-smoke-result.json" --mode smoke --source synthetic
+
+  models-integration:
+    # Real LightGBM fit/save/load/predict, including separate-process and capsule parity.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          version: "0.12.0"
+      - name: Fetch pinned notebook revisions
+        run: python3 scripts/fetch_notebook_revisions.py
+      - name: Install with the models extra
+        run: uv sync --extra dev --extra notebook --extra models --frozen
+      - name: Native bundle, fresh-process and comparison tests
+        env:
+          MPLBACKEND: Agg
+        run: >-
+          uv run --frozen pytest -m models
+          tests/test_bundles.py tests/test_fresh_process.py tests/test_comparison.py
+      - name: Synthetic LightGBM train, request and separate-process predict via the CLI
+        env:
+          MPLBACKEND: Agg
+        run: |
+          set -euo pipefail
+          uv run --frozen retail-forecast fixture --config configs/smoke.yaml
+          uv run --frozen retail-forecast train --config configs/smoke.yaml \
+            --model-id lightgbm_global > "${RUNNER_TEMP}/train.json"
+          uv run --frozen retail-forecast request --config configs/smoke.yaml \
+            > "${RUNNER_TEMP}/request.json"
+          bundle=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bundle"])' "${RUNNER_TEMP}/train.json")
+          request_dir=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["request_dir"])' "${RUNNER_TEMP}/request.json")
+          uv run --frozen retail-forecast predict --config configs/smoke.yaml \
+            --bundle "$bundle" --request "$request_dir"

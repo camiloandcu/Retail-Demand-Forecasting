@@ -349,3 +349,142 @@ def attach_labels(frame: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
         row = joined.loc[joined["_merge"].ne("both")].iloc[0]
         raise ForecastRequestError("SCHEMA_INVALID", "labels.missing", _safe_key(row, key))
     return joined.drop(columns="_merge")
+
+
+FORECAST_COLUMNS: Final = (
+    "store_nbr",
+    "family",
+    "forecast_origin",
+    "target_date",
+    "horizon",
+    "prediction",
+    "model_id",
+    "model_version",
+    "bundle_id",
+    "training_run_id",
+    "prediction_run_id",
+    "evaluation_run_id",
+    "snapshot_id",
+    "availability_policy",
+    "input_contract_version",
+    "data_source",
+    "execution_mode",
+)
+FORECAST_ORDER: Final = ("store_nbr", "family", "target_date")
+_LINEAGE_TEXT: Final = (
+    "model_id",
+    "model_version",
+    "bundle_id",
+    "training_run_id",
+    "prediction_run_id",
+)
+
+
+def validate_forecast_frame(
+    frame: pd.DataFrame, *, request: ForecastRequest, expected_bundle_id: str
+) -> None:
+    """Accept only the exact requested grid with finite, attributed, nonnegative values."""
+
+    if not isinstance(frame, pd.DataFrame) or tuple(frame.columns) != FORECAST_COLUMNS:
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.columns")
+    expected = pd.DataFrame(request.series_keys, columns=["store_nbr", "family"]).merge(
+        pd.DataFrame({"target_date": request.target_dates}), how="cross"
+    )
+    if frame.duplicated(list(FORECAST_ORDER)).any():
+        row = frame.loc[frame.duplicated(list(FORECAST_ORDER))].iloc[0]
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.key", _safe_key(row, FORECAST_ORDER))
+    joined = frame[list(FORECAST_ORDER)].merge(
+        expected, on=list(FORECAST_ORDER), how="outer", indicator=True
+    )
+    if not joined["_merge"].eq("both").all():
+        row = joined.loc[joined["_merge"].ne("both")].iloc[0]
+        raise ForecastRequestError(
+            "SCHEMA_INVALID", "forecast.grid", _safe_key(row, FORECAST_ORDER)
+        )
+    if not frame["forecast_origin"].eq(request.origin).all():
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.forecast_origin")
+    horizon = (frame["target_date"] - frame["forecast_origin"]).dt.days
+    if (
+        not frame["horizon"].astype("int64").eq(horizon).all()
+        or not horizon.between(1, request.horizon).all()
+    ):
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.horizon")
+    values = frame["prediction"].to_numpy(dtype=np.float64)
+    if not np.isfinite(values).all():
+        raise ForecastRequestError("NONFINITE_VALUE", "forecast.prediction")
+    if (values < 0).any():
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.prediction")
+    for column in _LINEAGE_TEXT:
+        if frame[column].isna().any() or frame[column].astype(str).str.len().eq(0).any():
+            raise ForecastRequestError("SCHEMA_INVALID", f"forecast.{column}")
+        if frame[column].nunique() != 1:
+            raise ForecastRequestError("SCHEMA_INVALID", f"forecast.{column}")
+    evaluation = frame["evaluation_run_id"]
+    if evaluation.notna().any() and (evaluation.isna().any() or evaluation.nunique() != 1):
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.evaluation_run_id")
+    if not frame["bundle_id"].eq(expected_bundle_id).all():
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.bundle_id")
+    for column, value in (
+        ("snapshot_id", request.snapshot_id),
+        ("availability_policy", request.availability_policy),
+        ("input_contract_version", request.input_contract_version),
+        ("data_source", request.data_source),
+    ):
+        if not frame[column].eq(value).all():
+            raise ForecastRequestError(
+                "POLICY_MISMATCH" if column == "availability_policy" else "SCHEMA_INVALID",
+                f"forecast.{column}",
+            )
+    if not frame["execution_mode"].isin(["smoke", "full"]).all() or (
+        frame["execution_mode"].nunique() != 1
+    ):
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.execution_mode")
+    ordered = frame[list(FORECAST_ORDER)].reset_index(drop=True)
+    if not ordered.equals(
+        ordered.sort_values(list(FORECAST_ORDER), kind="mergesort").reset_index(drop=True)
+    ):
+        raise ForecastRequestError("SCHEMA_INVALID", "forecast.order")
+
+
+COMPLETE_LINEAGE_COLUMNS: Final = (
+    "model_id",
+    "model_version",
+    "bundle_id",
+    "training_run_id",
+    "prediction_run_id",
+    "evaluation_run_id",
+    "snapshot_id",
+    "availability_policy",
+    "input_contract_version",
+    "data_source",
+    "execution_mode",
+)
+
+
+class LineageIneligibleError(ValueError):
+    """A table lacks the producer identities required for complete-record publication."""
+
+    def __init__(self, missing: Iterable[str]) -> None:
+        self.missing = tuple(sorted(missing))
+        super().__init__(
+            "LINEAGE_INCOMPLETE: missing producer identities " + ", ".join(self.missing)
+        )
+
+
+def require_complete_lineage(frame: pd.DataFrame) -> None:
+    """Admit only scored rows whose every producer identity is present and non-null.
+
+    Research-only rows (D2-01 `research_partial` OOF, zero sanity controls) fail
+    here; they must be regenerated through verified bundles, never patched.
+    """
+
+    missing = {column for column in COMPLETE_LINEAGE_COLUMNS if column not in frame}
+    missing |= {
+        column
+        for column in COMPLETE_LINEAGE_COLUMNS
+        if column in frame and (frame[column].isna().any() or frame[column].eq("").any())
+    }
+    if "lineage_status" not in frame or not frame["lineage_status"].eq("complete").all():
+        missing.add("lineage_status=complete")
+    if missing:
+        raise LineageIneligibleError(missing)

@@ -11,10 +11,18 @@ from retail_forecast.availability import POLICIES
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_KINDS = {
-    "training": {"model", "dataset_summary"},
+    "training": {"bundle_manifest", "dataset_summary", "verification"},
     "evaluation": {"evaluation"},
-    "prediction": {"submission"},
-    "smoke": {"model", "dataset_summary", "evaluation", "submission", "smoke_summary"},
+    "prediction": {"forecast"},
+    "request": {"forecast_request"},
+    "smoke": {
+        "bundle_manifest",
+        "dataset_summary",
+        "evaluation",
+        "forecast",
+        "submission",
+        "smoke_summary",
+    },
     "baseline": {
         "oof",
         "segmented_metrics",
@@ -24,8 +32,16 @@ REQUIRED_KINDS = {
         "figure",
         "native_model",
     },
+    "comparison": {"oof", "segmented_metrics", "experiment_summary"},
     "audit": {"audit_manifest", "audit_table", "figure"},
     "features": {"split_manifest", "feature_manifest"},
+}
+# Completed records produced before verified bundles stay verifiable as history.
+# They are never selectable as bundles: loading requires a listed bundle manifest.
+LEGACY_REQUIRED_KINDS = {
+    "training": {"model", "dataset_summary"},
+    "prediction": {"submission"},
+    "smoke": {"model", "dataset_summary", "evaluation", "submission", "smoke_summary"},
 }
 MANIFEST_KEYS = {
     "schema_version",
@@ -164,7 +180,11 @@ def validate_manifest(value: Any, *, successful: bool = False) -> dict[str, Any]
         if not isinstance(entry["kind"], str) or not entry["kind"]:
             raise ValueError("Invalid artifact kind")
     if successful:
-        required = REQUIRED_KINDS[value["kind"]] | {"resolved_config", "dataset_manifest"}
-        if not required.issubset({entry["kind"] for entry in value["artifacts"]}):
+        produced = {entry["kind"] for entry in value["artifacts"]}
+        base = {"resolved_config", "dataset_manifest"}
+        alternatives = [REQUIRED_KINDS[value["kind"]]]
+        if value["kind"] in LEGACY_REQUIRED_KINDS:
+            alternatives.append(LEGACY_REQUIRED_KINDS[value["kind"]])
+        if not any((required | base) <= produced for required in alternatives):
             raise ValueError("Missing producer-required artifacts")
     return value

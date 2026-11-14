@@ -27,6 +27,7 @@ kaggle.json
 
 # Pipeline outputs
 /artifacts/
+/capsules/
 /artifacts/metrics/
 /artifacts/figures/
 /checkpoints/

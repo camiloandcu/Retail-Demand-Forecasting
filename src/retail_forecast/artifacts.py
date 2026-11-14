@@ -20,6 +20,7 @@ from retail_forecast.provenance import (
     dataset_snapshot,
     digest_json,
     hardware_context,
+    request_snapshot,
     resolved_config,
     sha256_file,
     verify_inputs,
@@ -63,6 +64,44 @@ def safe_path(root: Path, relative: str | Path, *, regular: bool = False) -> Pat
     if regular and (not target.exists() or not stat.S_ISREG(target.stat().st_mode)):
         raise ValueError("Artifact is not a regular file")
     return target
+
+
+def read_regular_bytes(root: Path, relative: str | Path) -> bytes:
+    """Read a contained regular file through one no-follow descriptor.
+
+    `safe_path` validates the name; opening with O_NOFOLLOW and checking the open
+    descriptor closes the window in which a symlink or FIFO could be swapped in.
+    """
+    path = safe_path(root, relative, regular=True)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    descriptor = os.open(path, flags)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError("Artifact is not a regular file")
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            return stream.read()
+    finally:
+        os.close(descriptor)
+
+
+def tree_matches(root: Path, declared: set[str]) -> bool:
+    """True when root holds exactly the declared regular files and their parents."""
+    root = _trusted_path(root)
+    directories = {
+        parent.as_posix()
+        for name in declared
+        for parent in PurePosixPath(name).parents
+        if parent != PurePosixPath(".")
+    }
+    for path in root.rglob("*"):
+        name = path.relative_to(root).as_posix()
+        mode = path.lstat().st_mode
+        if stat.S_ISDIR(mode):
+            if name not in directories:
+                return False
+        elif not stat.S_ISREG(mode) or name not in declared:
+            return False
+    return all((root / name).is_file() for name in declared)
 
 
 def resolve_run(config: ProjectConfig, run_id: str) -> Path:
@@ -220,7 +259,26 @@ def capture_inputs(run: RunContext, input_dir: Path | None = None) -> dict[str, 
     if run.snapshot is not None:
         raise ValueError("Input snapshot already captured")
     input_dir = _trusted_path(input_dir or run.config.paths.raw_data_dir)
-    snapshot = dataset_snapshot(run.config, input_dir)
+    return _bind_snapshot(run, input_dir, dataset_snapshot(run.config, input_dir))
+
+
+def capture_request_inputs(run: RunContext, request_dir: Path) -> dict[str, bytes]:
+    """Bind a verified normalized request directory as this run's only input.
+
+    Returns the verified file contents so the caller parses exactly the hashed bytes.
+    """
+    from retail_forecast.request_store import request_files
+
+    ensure_running(run)
+    if run.snapshot is not None:
+        raise ValueError("Input snapshot already captured")
+    request_dir = _trusted_path(request_dir)
+    contents = request_files(request_dir)
+    _bind_snapshot(run, request_dir, request_snapshot(run.config, request_dir, contents))
+    return contents
+
+
+def _bind_snapshot(run: RunContext, input_dir: Path, snapshot: dict[str, Any]) -> dict[str, Any]:
     run.input_dir, run.snapshot = input_dir, snapshot
     run.manifest["snapshot_id"] = snapshot["snapshot_id"]
     _persist(run)
@@ -333,3 +391,33 @@ def run_result(run: RunContext) -> dict[str, Any]:
             entry["path"]: str(run.root / entry["path"]) for entry in run.manifest["artifacts"]
         },
     }
+
+
+def record_interruption(run_dir: Path, *, min_idle_seconds: float = 3600.0) -> dict[str, Any]:
+    """Mark an abandoned RUNNING record INTERRUPTED without inventing an exit time.
+
+    Only an operator calls this, for a run whose process is known to be gone. The
+    idle guard refuses records whose manifest changed recently, so a live writer is
+    not cut off by mistake. Outputs are preserved; no completion marker is written,
+    so the run stays unconsumable. A live owner that resumes writing fails its next
+    `ensure_running` check.
+    """
+    import time
+
+    root = _trusted_path(Path(run_dir))
+    path = safe_path(root, "run.json", regular=True)
+    manifest = validate_manifest(read_json(path))
+    if root.name != manifest["run_id"]:
+        raise ValueError("Run directory identity mismatch")
+    if manifest["state"] != "RUNNING":
+        raise ValueError("Only a RUNNING record can be recorded as interrupted")
+    if (root / "COMPLETE.json").exists() or (root / "COMPLETE.json").is_symlink():
+        raise ValueError("A run with a completion marker is not interrupted")
+    idle = time.time() - path.stat().st_mtime
+    if idle < min_idle_seconds:
+        raise ValueError("Run record changed recently; its process may still be running")
+    terminal = {**manifest, "state": "INTERRUPTED", "error_code": "INTERRUPTED"}
+    # finished_at_utc stays null: the original exit time is unknown.
+    validate_manifest(terminal)
+    write_json(path, terminal)
+    return terminal
