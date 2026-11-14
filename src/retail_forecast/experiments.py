@@ -43,9 +43,19 @@ from retail_forecast.features import (
     transform_features,
 )
 from retail_forecast.metrics import clip_nonnegative_predictions, rmsle
+from retail_forecast.models.lightgbm import (
+    fit_booster,
+    lightgbm_params,
+    model_matrix,
+    predict_log,
+)
 from retail_forecast.provenance import verify_inputs
 from retail_forecast.splits import RollingOriginFold, make_rolling_origin_folds
 from retail_forecast.tracking_runtime import log_baseline_tracking
+from retail_forecast.training import (  # noqa: F401 - re-exported for existing callers
+    combine_feature_batches,
+    cutoff_training_origins,
+)
 from retail_forecast.versions import capture_versions
 
 MODEL_IDS = ("zero", "seasonal_naive_7d", "seasonal_average_4w", "lightgbm_global")
@@ -64,47 +74,13 @@ def training_origins(
 ) -> tuple[pd.Timestamp, ...]:
     """Keep only pre-registered origins with a complete observed target horizon."""
 
-    observed = pd.DatetimeIndex(pd.to_datetime(available_dates, errors="raise")).normalize()
-    if observed.empty:
-        raise ValueError("Observed training dates cannot be empty")
-    observed = pd.DatetimeIndex(observed.unique()).sort_values()
-    if observed.max() < fold.origin:
-        raise ValueError(f"Training dates do not reach the forecast origin for {fold.name}")
-    latest = fold.origin - pd.offsets.Day(fold.horizon)
-    candidates = [latest - pd.offsets.Day(index * stride_days) for index in range(max_origins)]
-    valid = [
-        origin
-        for origin in candidates
-        if origin >= observed.min()
-        and pd.date_range(origin + pd.offsets.Day(1), periods=fold.horizon, freq="D")
-        .isin(observed)
-        .all()
-    ]
-    if not valid:
-        raise ValueError(f"No complete training horizon is available for {fold.name}")
-    return tuple(sorted(valid))
-
-
-def combine_feature_batches(batches: list[FeatureBatch]) -> FeatureBatch:
-    """Combine identically specified historical origins without changing their features."""
-
-    if not batches:
-        raise ValueError("At least one feature batch is required")
-    first = batches[0]
-    for batch in batches[1:]:
-        if (
-            batch.numeric_features != first.numeric_features
-            or batch.categorical_features != first.categorical_features
-            or batch.spec != first.spec
-        ):
-            raise ValueError("Historical feature batches must share one schema")
-    frame = pd.concat([batch.frame for batch in batches], ignore_index=True)
-    return FeatureBatch(
-        frame=frame,
-        numeric_features=first.numeric_features,
-        categorical_features=first.categorical_features,
-        origin=max(batch.origin for batch in batches),
-        spec=first.spec,
+    return cutoff_training_origins(
+        fold.origin,
+        fold.horizon,
+        available_dates,
+        stride_days=stride_days,
+        max_origins=max_origins,
+        name=fold.name,
     )
 
 
@@ -174,28 +150,7 @@ def segmented_rmsle(oof: pd.DataFrame) -> pd.DataFrame:
 
 
 def _lightgbm_params(config: ProjectConfig) -> dict[str, Any]:
-    baseline = config.baseline
-    return {
-        "objective": "regression",
-        "n_estimators": baseline.tree_n_estimators,
-        "learning_rate": baseline.tree_learning_rate,
-        "num_leaves": baseline.tree_num_leaves,
-        "min_child_samples": baseline.tree_min_child_samples,
-        "colsample_bytree": baseline.tree_feature_fraction,
-        "reg_lambda": baseline.tree_l2,
-        "random_state": config.runtime.seed,
-        "n_jobs": -1,
-        "deterministic": True,
-        "force_col_wise": True,
-        "verbosity": -1,
-    }
-
-
-def _model_matrix(transformed: pd.DataFrame) -> pd.DataFrame:
-    # Validation inputs are label-free; training inputs carry the keyed label.
-    return transformed.drop(columns=["forecast_origin", "target_date"]).drop(
-        columns="sales", errors="ignore"
-    )
+    return lightgbm_params(config.baseline, config.runtime.seed)
 
 
 def run_baseline_experiments(
@@ -214,7 +169,7 @@ def run_baseline_experiments(
     if len(MODEL_IDS) > 10 or config.baseline.tree_model != "lightgbm":
         raise ValueError("The experiment budget or single-tree contract was violated")
     try:
-        import lightgbm as lgb
+        import lightgbm  # noqa: F401 - fail early when the models extra is absent
         import matplotlib.pyplot as plt
     except ImportError as error:  # pragma: no cover - optional dependency boundary
         raise RuntimeError("Install the 'models' and 'notebook' extras") from error
@@ -371,22 +326,16 @@ def run_baseline_experiments(
         fitted = fit_preprocessor(training_batch, fold.origin)
         transformed_train = transform_features(training_batch, fitted)
         transformed_validation = transform_features(validation_batch, fitted)
-        x_train = _model_matrix(transformed_train)
-        x_validation = _model_matrix(transformed_validation)
-        categorical = [column for column in x_train if column.startswith("cat__")]
-        tree = lgb.LGBMRegressor(**_lightgbm_params(config))
-        tree.fit(
-            x_train,
-            np.log1p(transformed_train["sales"].to_numpy()),
-            categorical_feature=categorical,
-        )
-        raw_tree = np.expm1(tree.predict(x_validation))
+        x_train = model_matrix(transformed_train)
+        x_validation = model_matrix(transformed_validation)
+        booster = fit_booster(x_train, transformed_train["sales"], _lightgbm_params(config))
+        raw_tree = np.expm1(predict_log(booster, x_validation))
         predictions[TREE_MODEL_ID] = clip_nonnegative_predictions(raw_tree)
         durations[TREE_MODEL_ID] = time.perf_counter() - tree_started
         memory_by_model[TREE_MODEL_ID] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         model_path = write(
             f"models/lightgbm_{fold.name}.txt",
-            lambda path, tree=tree: tree.booster_.save_model(str(path)),
+            lambda path, booster=booster: booster.save_model(str(path)),
             "native_model",
         )
         model_paths.append(model_path)
