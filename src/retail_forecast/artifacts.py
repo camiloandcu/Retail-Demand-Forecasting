@@ -20,6 +20,7 @@ from retail_forecast.provenance import (
     dataset_snapshot,
     digest_json,
     hardware_context,
+    request_snapshot,
     resolved_config,
     sha256_file,
     verify_inputs,
@@ -220,7 +221,26 @@ def capture_inputs(run: RunContext, input_dir: Path | None = None) -> dict[str, 
     if run.snapshot is not None:
         raise ValueError("Input snapshot already captured")
     input_dir = _trusted_path(input_dir or run.config.paths.raw_data_dir)
-    snapshot = dataset_snapshot(run.config, input_dir)
+    return _bind_snapshot(run, input_dir, dataset_snapshot(run.config, input_dir))
+
+
+def capture_request_inputs(run: RunContext, request_dir: Path) -> dict[str, bytes]:
+    """Bind a verified normalized request directory as this run's only input.
+
+    Returns the verified file contents so the caller parses exactly the hashed bytes.
+    """
+    from retail_forecast.request_store import request_files
+
+    ensure_running(run)
+    if run.snapshot is not None:
+        raise ValueError("Input snapshot already captured")
+    request_dir = _trusted_path(request_dir)
+    contents = request_files(request_dir)
+    _bind_snapshot(run, request_dir, request_snapshot(run.config, request_dir, contents))
+    return contents
+
+
+def _bind_snapshot(run: RunContext, input_dir: Path, snapshot: dict[str, Any]) -> dict[str, Any]:
     run.input_dir, run.snapshot = input_dir, snapshot
     run.manifest["snapshot_id"] = snapshot["snapshot_id"]
     _persist(run)

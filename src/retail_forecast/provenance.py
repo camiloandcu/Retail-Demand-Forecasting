@@ -162,6 +162,45 @@ def dataset_snapshot(config: ProjectConfig, input_dir: Path) -> dict[str, Any]:
     return snapshot
 
 
+def request_snapshot(
+    config: ProjectConfig, input_dir: Path, contents: dict[str, bytes]
+) -> dict[str, Any]:
+    """Identify a verified normalized request directory as a run's only input."""
+    from retail_forecast.io_utils import parse_json_bytes
+
+    manifest = parse_json_bytes(contents["request.json"])
+    if manifest["data_source"] != config.data.source:
+        raise ValueError("Request data source differs from the configured source")
+    if manifest["availability_policy"] != config.data.availability_policy:
+        raise ValueError("POLICY_MISMATCH: request policy differs from the configured policy")
+    snapshot = {
+        "schema_version": 1,
+        "data_source": config.data.source,
+        "execution_mode": config.mode,
+        "input_contract_version": manifest["input_contract_version"],
+        "availability_policy": manifest["availability_policy"],
+        "stage": "normalized_request",
+        "source_snapshot_id": manifest["snapshot_id"],
+        "files": [
+            {
+                "path": name,
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+            for name, data in sorted(contents.items())
+        ],
+        "valid_date_range": {"start": manifest["origin"], "end": manifest["origin"]},
+        "supported_series": [
+            {"store_nbr": int(store), "family": str(family)}
+            for store, family in manifest["series_keys"]
+        ],
+        "extraction_code": code_identity(),
+        "generator": None,
+    }
+    snapshot["snapshot_id"] = digest_json(snapshot)
+    return snapshot
+
+
 def verify_inputs(snapshot: dict[str, Any], input_dir: Path) -> None:
     for entry in snapshot["files"]:
         path = input_dir / entry["path"]

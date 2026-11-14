@@ -70,11 +70,16 @@ def _finite_float(value: str) -> float:
     return result
 
 
-def read_json(path: Path) -> Any:
-    """Read unambiguous finite JSON; path trust belongs to the caller."""
+def parse_json_bytes(data: bytes) -> Any:
+    """Parse unambiguous finite JSON from bytes already integrity-checked by the caller."""
     return json.loads(
-        path.read_text(encoding="utf-8"),
+        data.decode("utf-8"),
         object_pairs_hook=_unique_pairs,
         parse_constant=_invalid_constant,
         parse_float=_finite_float,
     )
+
+
+def read_json(path: Path) -> Any:
+    """Read unambiguous finite JSON; path trust belongs to the caller."""
+    return parse_json_bytes(path.read_bytes())
