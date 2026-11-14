@@ -67,7 +67,9 @@ def test_card_exposure_and_claims_are_rejected(card_inputs, mutation) -> None:
 def test_kaggle_rights_record_restrictions_and_unknowns(card_inputs) -> None:
     snapshot, summary = card_inputs
     kaggle = {**snapshot, "data_source": "kaggle"}
-    card = build_data_card(kaggle, {**summary, "source": "kaggle"}, policy="competition_v1")
+    kaggle_summary = {**summary, "source": "kaggle"}
+    card = build_data_card(kaggle, kaggle_summary, policy="competition_v1")
+    validate_data_card(card, kaggle, kaggle_summary)
     rights = card["rights"]
     assert rights["status"] == "restricted_noncommercial"
     assert rights["primary_source_url"].startswith("https://www.kaggle.com/")

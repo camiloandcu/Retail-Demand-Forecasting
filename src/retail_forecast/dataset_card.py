@@ -33,7 +33,7 @@ MISSINGNESS_FIELDS: Final = (
     (EDA_REF, "observations.oil_missing_values"),
 )
 LOCAL_PATH: Final = re.compile(
-    r"(?<![\w.])/(home|tmp|mnt|content|Users|root|var|opt)/|[A-Za-z]:[\\/]|\\\\Users"
+    r"(?<![\w.])/(home|tmp|mnt|content|Users|root|var|opt)/|(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\Users"
 )
 FORBIDDEN_KEYS: Final = frozenset({"rmsle", "mae", "wape", "bias", "y_pred", "prediction"})
 
