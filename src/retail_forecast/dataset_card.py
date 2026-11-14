@@ -112,18 +112,37 @@ def build_data_card(
             if synthetic
             else "Kaggle test labels are unavailable; evaluation uses historical folds.",
         ],
-        "rights": {
-            "status": "synthetic_fixture" if synthetic else "unverified",
-            "primary_source_url": None if synthetic else RULES_URL,
+        "rights": _rights(synthetic),
+    }
+
+
+def _rights(synthetic: bool) -> dict[str, Any]:
+    if synthetic:
+        return {
+            "status": "synthetic_fixture",
+            "primary_source_url": None,
             "checked_date": RIGHTS_CHECKED,
-            "unknowns": []
-            if synthetic
-            else [
-                "Competition rules text could not be retrieved for review on the checked date.",
-                "Redistribution or public display of raw rows or derived tables is not "
-                "established; raw data stays local.",
-            ],
-        },
+            "terms": [],
+            "unknowns": [],
+        }
+    return {
+        "status": "restricted_noncommercial",
+        "primary_source_url": RULES_URL,
+        "checked_date": RIGHTS_CHECKED,
+        "terms": [
+            "Rule 7A: use permitted for the competition, Kaggle forums, academic research "
+            "and education, and other non-commercial purposes.",
+            "Rule 7B: no transmission, duplication, publication or redistribution of the data "
+            "to non-participants; no license or ownership is granted.",
+            "Rule 8B: sharing code based on the data outside Kaggle is restricted during the "
+            "competition unless the competition-specific rules permit it.",
+        ],
+        "unknowns": [
+            "Competition-specific rules were not reviewed; they may modify rules 7 and 8.",
+            "Whether rule 8B applies to this ongoing practice competition is unresolved.",
+            "Whether derived aggregate tables or figures count as publishing the data is "
+            "not stated; raw rows stay local and are never displayed.",
+        ],
     }
 
 
@@ -157,5 +176,5 @@ def validate_data_card(
 
     if keys(card) & FORBIDDEN_KEYS:
         raise ValueError("Card contains model-performance fields")
-    if card["rights"]["status"] == "granted":
+    if card["rights"]["status"] not in {"synthetic_fixture", "restricted_noncommercial"}:
         raise ValueError("Card cannot assert granted rights without reviewed evidence")
