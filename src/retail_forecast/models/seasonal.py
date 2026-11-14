@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -112,17 +113,25 @@ class _SeasonalAdapter:
         rows = parse_json_bytes(state[STATE_FILE])
         if not isinstance(rows, dict) or set(rows) != {"weekday_values", "fallback_values"}:
             raise ValueError("Invalid seasonal state")
+
+        def value_of(raw: object) -> float:
+            if type(raw) not in (int, float) or not math.isfinite(raw) or raw < 0:
+                raise ValueError("Seasonal values must be finite nonnegative numbers")
+            return float(raw)
+
         weekday = {}
         for row in rows["weekday_values"]:
             store, family, day, value = row
-            if not (0 <= int(day) <= 6) or value < 0:
+            if type(store) is not int or not isinstance(family, str) or type(day) is not int:
+                raise ValueError("Invalid seasonal weekday key")
+            if not 0 <= day <= 6:
                 raise ValueError("Invalid seasonal weekday state")
-            weekday[(int(store), str(family), int(day))] = float(value)
+            weekday[(store, family, day)] = value_of(value)
         fallback = {}
         for store, family, value in rows["fallback_values"]:
-            if value < 0:
-                raise ValueError("Invalid seasonal fallback state")
-            fallback[(int(store), str(family))] = float(value)
+            if type(store) is not int or not isinstance(family, str):
+                raise ValueError("Invalid seasonal fallback key")
+            fallback[(store, family)] = value_of(value)
         spec = FeatureSpec(signature["availability_policy"], horizon=signature["horizon"])
         if spec.sha256 != signature["feature_spec_sha256"]:
             raise ValueError("Seasonal signature feature specification mismatch")

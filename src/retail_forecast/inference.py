@@ -47,8 +47,9 @@ def predict_bundle(
     observed = set(
         map(tuple, request.sales_history[["store_nbr", "family"]].drop_duplicates().to_numpy())
     )
+    observed = {(int(s), str(f)) for s, f in observed}
     for store, family in request.series_keys:
-        if (store, family) not in {(int(s), str(f)) for s, f in observed}:
+        if (int(store), family) not in observed:
             raise ForecastRequestError(
                 "HISTORY_INSUFFICIENT", "sales_history", f"store_nbr={store},family={family}"
             )

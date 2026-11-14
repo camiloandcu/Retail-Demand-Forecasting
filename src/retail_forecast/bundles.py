@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any, Final
 
@@ -272,7 +273,7 @@ def _container_listing(
             )
         except (ValueError, FileNotFoundError, OSError) as error:
             raise BundleError(
-                "BUNDLE_INVALID", f"training run is not verified ({error})"
+                "BUNDLE_INVALID", "training run is not a verified completed record"
             ) from error
         listing = {
             entry["path"][len(prefix) :]: entry["sha256"]
@@ -285,8 +286,8 @@ def _container_listing(
             capsule = verify_inference_capsule(ref.root)
         except FileNotFoundError as error:
             raise BundleError("BUNDLE_MISSING", "capsule is unavailable") from error
-        except ValueError as error:
-            raise BundleError("BUNDLE_INVALID", f"capsule is not verified ({error})") from error
+        except (ValueError, OSError) as error:
+            raise BundleError("BUNDLE_INVALID", "capsule is not verified") from error
         listing = {
             entry["path"][len("bundle/") :]: entry["sha256"]
             for entry in capsule["files"]
@@ -349,9 +350,25 @@ def validate_bundle_manifest(manifest: Any) -> dict[str, Any]:
     if (
         not isinstance(series, list)
         or not series
-        or any(not isinstance(item, list) or len(item) != 2 for item in series)
+        or any(
+            not isinstance(item, list)
+            or len(item) != 2
+            or type(item[0]) is not int
+            or not isinstance(item[1], str)
+            for item in series
+        )
+        or len({tuple(item) for item in series}) != len(series)
     ):
         raise BundleError("BUNDLE_INVALID", "invalid supported series")
+    for key in ("horizon", "min_context_days", "request_context_days", "seed"):
+        if type(manifest[key]) is not int or manifest[key] < (0 if key == "seed" else 1):
+            raise BundleError("BUNDLE_INVALID", f"invalid {key}")
+    cutoff = manifest["training_cutoff"]
+    try:
+        if not isinstance(cutoff, str) or date.fromisoformat(cutoff).isoformat() != cutoff:
+            raise ValueError
+    except ValueError as error:
+        raise BundleError("BUNDLE_INVALID", "invalid training_cutoff") from error
     return manifest
 
 
@@ -431,10 +448,20 @@ def load_bundle(
             raise BundleError("BUNDLE_INVALID", f"container hash for {name!r} differs")
         contents[name] = _read_verified(directory, name, sha)
     try:
-        signature = parse_json_bytes(contents["signature.json"])
-        preprocessing = parse_json_bytes(contents["preprocessing.json"])
-    except ValueError as error:
-        raise BundleError("BUNDLE_INVALID", "bundle JSON is invalid") from error
+        fitted = _build_model(manifest, contents)
+    except BundleError:
+        raise
+    except Exception as error:  # any parse/native failure is an invalid bundle
+        # Inner messages can carry local paths or record values; never forward them.
+        raise BundleError("BUNDLE_INVALID", "bundle content was rejected") from error
+    return LoadedModel(fitted, manifest)
+
+
+def _build_model(manifest: dict[str, Any], contents: dict[str, bytes]) -> FittedModel:
+    signature = parse_json_bytes(contents["signature.json"])
+    preprocessing = parse_json_bytes(contents["preprocessing.json"])
+    if not isinstance(signature, dict) or not isinstance(preprocessing, dict):
+        raise BundleError("BUNDLE_INVALID", "bundle JSON has the wrong shape")
     if (
         signature.get("adapter_id") != manifest["adapter_id"]
         or signature.get("adapter_version") != manifest["adapter_version"]
@@ -442,21 +469,17 @@ def load_bundle(
         or signature.get("horizon") != manifest["horizon"]
     ):
         raise BundleError("BUNDLE_INVALID", "signature differs from the bundle manifest")
-    supported = tuple((int(store), str(family)) for store, family in manifest["supported_series"])
-    adapter = get_adapter(manifest["adapter_id"])
-    try:
-        fitted = adapter.load(
-            signature=signature,
-            preprocessing=preprocessing,
-            state={
-                name.removeprefix("state/"): contents[name]
-                for name in contents
-                if name.startswith("state/")
-            },
-            identity={"supported_series": supported},
-        )
-    except (ValueError, KeyError, TypeError) as error:
-        raise BundleError("BUNDLE_INVALID", f"native state rejected ({error})") from error
+    supported = tuple((store, family) for store, family in manifest["supported_series"])
+    fitted = get_adapter(manifest["adapter_id"]).load(
+        signature=signature,
+        preprocessing=preprocessing,
+        state={
+            name.removeprefix("state/"): contents[name]
+            for name in contents
+            if name.startswith("state/")
+        },
+        identity={"supported_series": supported},
+    )
     if fitted.training_cutoff != pd.Timestamp(manifest["training_cutoff"]):
         raise BundleError("BUNDLE_INVALID", "training cutoff differs from the manifest")
-    return LoadedModel(fitted, manifest)
+    return fitted

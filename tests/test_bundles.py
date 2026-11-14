@@ -483,3 +483,92 @@ def test_lightgbm_bundle_serves_later_origins_from_request_history(synthetic_con
     trained = train(synthetic_config, model_id=LIGHTGBM, origin=dt.date(2020, 2, 17))
     result = predict(synthetic_config, bundle=trained["bundle"])
     assert len(pd.read_csv(result["forecast"])) == 64
+
+
+# Specialty-review regressions: every rejection is BUNDLE_INVALID with no path text ----
+
+
+def _resign_in_run(trained: dict, edit) -> None:
+    """Fully re-sign one bundle file so only content validation can reject it."""
+    run_dir = Path(trained["run_dir"])
+    directory = Path(trained["bundle_dir"])
+    relative = trained["bundle"].split(":", 1)[1]
+    name, data = edit(directory)
+    (directory / name).write_bytes(data)
+    manifest = json.loads((directory / "bundle.json").read_text())
+    sha = hashlib.sha256(data).hexdigest()
+    if name == "signature.json":
+        manifest["signature_sha256"] = sha
+    elif name == "preprocessing.json":
+        manifest["preprocessing_sha256"] = sha
+    else:
+        for entry in manifest["state_files"]:
+            if entry["path"] == name:
+                entry.update(sha256=sha, bytes=len(data))
+    body = {k: v for k, v in manifest.items() if k != "bundle_id"}
+    manifest = {**body, "bundle_id": digest_json(body)}
+    (directory / "bundle.json").write_bytes(canonical_json(manifest))
+    run = json.loads((run_dir / "run.json").read_text())
+    for entry in run["artifacts"]:
+        path = run_dir / entry["path"]
+        if entry["path"].startswith(relative):
+            entry.update(
+                sha256=hashlib.sha256(path.read_bytes()).hexdigest(), bytes=path.stat().st_size
+            )
+    (run_dir / "run.json").write_bytes(canonical_json(run))
+    complete = json.loads((run_dir / "COMPLETE.json").read_text())
+    complete["run_sha256"] = digest_json(run)
+    (run_dir / "COMPLETE.json").write_bytes(canonical_json(complete))
+
+
+@pytest.mark.parametrize("case", ["signature_shape", "bool_value", "huge_value"])
+def test_resigned_malformed_seasonal_content_is_bundle_invalid(synthetic_config, case):
+    trained = train(synthetic_config, model_id=SEASONAL)
+
+    def edit(directory):
+        if case == "signature_shape":
+            return "signature.json", b"[1,2,3]\n"
+        rows = json.loads((directory / "state/seasonal.json").read_text())
+        if case == "bool_value":
+            rows["fallback_values"][0][2] = True
+            return "state/seasonal.json", canonical_json(rows)
+        rows["fallback_values"][0][2] = 12345.5
+        return "state/seasonal.json", canonical_json(rows).replace(b"12345.5", b"1e999")
+
+    _resign_in_run(trained, edit)
+    with pytest.raises(BundleError, match="^BUNDLE_INVALID"):
+        _load(trained)
+
+
+@pytest.mark.models
+def test_resigned_malformed_booster_is_bundle_invalid(lightgbm_bundle):
+    _resign_in_run(lightgbm_bundle, lambda d: ("state/booster.txt", b"not a booster\n"))
+    with pytest.raises(BundleError, match="^BUNDLE_INVALID"):
+        _load(lightgbm_bundle)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [{"training_cutoff": "not-a-date"}, {"supported_series": [["1", "A"]]}, {"horizon": "16"}],
+)
+def test_manifest_field_types_are_validated(synthetic_config, changes):
+    manifest = _manifest(train(synthetic_config, model_id=SEASONAL))
+    with pytest.raises(BundleError, match="^BUNDLE_INVALID"):
+        validate_bundle_manifest(_resigned(manifest, **changes))
+
+
+def test_unreadable_files_do_not_leak_local_paths(synthetic_config):
+    import os
+
+    if os.geteuid() == 0:
+        pytest.skip("permission bits do not apply to root")
+    trained = train(synthetic_config, model_id=SEASONAL)
+    run_json = Path(trained["run_dir"]) / "run.json"
+    run_json.chmod(0)
+    try:
+        with pytest.raises(BundleError) as error:
+            _load(trained)
+    finally:
+        run_json.chmod(0o600)
+    assert str(synthetic_config.paths.artifacts_dir) not in str(error.value)
+    assert "/" not in str(error.value).split(":", 1)[1]
