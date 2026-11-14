@@ -3,6 +3,7 @@
 - [Project overview and existing results](../README.md)
 - [Reproducible setup and notebook execution](01_reproducible_setup.md)
 - [Execution records and explicit result selection](02_execution_records.md)
+- [Availability policies and the forecast request boundary](03_availability_policies.md)
 - [Data access and local file layout](../data/README.md)
 - [First academic report](../ENTREGA1.pdf)
 

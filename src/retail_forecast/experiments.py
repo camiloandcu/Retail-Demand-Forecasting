@@ -27,7 +27,8 @@ from retail_forecast.baseline import (
 from retail_forecast.config import ProjectConfig
 from retail_forecast.data import load_frames
 from retail_forecast.data_contracts import attach_labels, benchmark_labels
-from retail_forecast.eda import sha256_file
+from retail_forecast.dataset_card import build_data_card, validate_data_card
+from retail_forecast.eda import build_eda_summary, build_eda_tables, load_eda_frames, sha256_file
 from retail_forecast.features import (
     FeatureBatch,
     FeatureSpec,
@@ -226,7 +227,14 @@ def run_baseline_experiments(
     # disk snapshot provenance. Verify before and after loading to detect changes.
     verify_inputs(run.snapshot, run.input_dir)
     frames = load_frames(run.input_dir)
+    eda_frames = load_eda_frames(run.input_dir)
     verify_inputs(run.snapshot, run.input_dir)
+    eda_summary = build_eda_summary(eda_frames, build_eda_tables(eda_frames), config.data.source)
+    del eda_frames
+    data_card = build_data_card(run.snapshot, eda_summary, policy=config.data.availability_policy)
+    validate_data_card(data_card, run.snapshot, eda_summary)
+    write_json_artifact(run, "inputs/eda-summary.json", eda_summary, kind="eda_summary")
+    write_json_artifact(run, "inputs/data-card.json", data_card, kind="dataset_card")
     train = frames["train.csv"].copy()
     train["date"] = pd.to_datetime(train["date"], errors="raise")
     feature_frames = dict(frames)
