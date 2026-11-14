@@ -248,6 +248,7 @@ def test_smoke_acquisition_cell_never_requests_credentials(tmp_path, monkeypatch
             if c["cell_type"] == "code" and "elif not required_files_exist" in "".join(c["source"])
         )
         # Execute only the acquisition branch, excluding downstream empirical work.
+        acquisition = acquisition.split("\ncapture_inputs(")[0]
         acquisition = acquisition.split('if MODE == "full":')[0]
         acquisition = acquisition.split("\nhashes = ")[0]
         acquisition = acquisition.split("\ndataset_contract = ")[0]

@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import random
 
 import numpy as np
 
 
 def set_global_seed(seed: int) -> None:
-    """Seed Python and NumPy and publish the seed for downstream frameworks."""
+    """Seed Python and NumPy; interpreter hash randomization is launch-only."""
 
-    os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
     np.random.seed(seed)

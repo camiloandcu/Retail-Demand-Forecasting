@@ -63,8 +63,11 @@ make baseline CONFIG=configs/smoke.yaml
 ```bash
 make train
 make evaluate
-make predict
+make predict TRAINING_RUN=<training-run-id>
 ```
+
+Copy the training run ID from its returned JSON before prediction. Every result
+has its own verified run directory; see [execution records](docs/02_execution_records.md).
 
 These commands default to `configs/full.yaml`. Override the configuration with
 `make train CONFIG=configs/smoke.yaml` when needed.

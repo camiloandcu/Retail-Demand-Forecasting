@@ -34,6 +34,6 @@ jobs:
       - name: Unit tests
         run: make test
       - name: Synthetic batch inference
-        run: make smoke
-      - name: Check submission artifact
-        run: test -s artifacts/smoke/submission.csv
+        run: uv run --frozen retail-forecast smoke --config configs/smoke.yaml > "${RUNNER_TEMP}/retail-smoke-result.json"
+      - name: Verify returned completed submission
+        run: uv run --frozen python scripts/verify_run_result.py "${RUNNER_TEMP}/retail-smoke-result.json" --mode smoke --source synthetic
