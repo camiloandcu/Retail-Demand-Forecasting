@@ -9,20 +9,24 @@ permissions:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    # Pinned image; move deliberately rather than with the ubuntu-latest label.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
           version: "0.12.0"
+      - name: Fetch pinned notebook revisions
+        # Squash merges leave pins reachable only by PR refs, which checkout skips.
+        run: python3 scripts/fetch_notebook_revisions.py
       - name: Check lock metadata
         run: uv lock --check
       - name: Install

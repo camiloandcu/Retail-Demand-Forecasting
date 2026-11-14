@@ -22,6 +22,9 @@ Do not reuse a moved virtual environment. Verify both package import and
 Make targets retain the frozen lock and do not update dependency resolution.
 Use a full Git clone for tests: pin-integrity checks inspect the package ancestor
 commit. CI fetches full history; shallow local clones need that history first.
+A squash-merged pin is reachable only through its pull-request ref, which a normal
+clone does not fetch. Run `python3 scripts/fetch_notebook_revisions.py` to fetch
+each notebook's exact pinned SHA; CI runs the same step before testing.
 
 ## Immutable notebook package and source identities
 
@@ -35,9 +38,12 @@ the notebook's source identity.
 Colab creates `/content/retail-forecast-<CODE_REVISION>` and verifies exact origin,
 HEAD and cleanliness before executing the package helper. Existing dirty, wrong
 origin/revision or incomplete directories are refused. Preserve them and choose a
-new directory rather than resetting user work. No bootstrap pulls a branch.
+new directory rather than resetting user work. No bootstrap pulls a branch; after
+cloning, it fetches the exact pinned SHA, which also works when a squash merge has
+left that commit reachable only by its pull-request ref.
 The pinned commit must be published before a fresh remote Colab fetch can work.
-Local Git fixture tests do not establish that remote availability.
+Local Git fixture tests do not establish that remote availability; the CI fetch
+step does, against the real repository.
 
 For local notebooks, the selected package checkout must be clean and at the exact
 pinned revision. Keep the open notebook outside that checkout so saving it does
