@@ -49,6 +49,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+markers = ["models: requires the optional models extra (real LightGBM)"]
 
 [tool.ruff]
 line-length = 100

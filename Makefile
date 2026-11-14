@@ -1,8 +1,11 @@
 CONFIG ?= configs/full.yaml
-TRAINING_RUN ?=
+MODEL_ID ?=
+BUNDLE ?=
+REQUEST ?=
 TRACKING_ARGS ?=
+MODEL_EXTRAS = $(if $(filter lightgbm_global,$(MODEL_ID))$(findstring lightgbm_global,$(BUNDLE)),--extra models,)
 
-.PHONY: install test lint smoke baseline train evaluate predict
+.PHONY: install test lint smoke baseline compare train evaluate request predict
 
 install:
 	uv sync --frozen --extra dev --extra notebook
@@ -20,12 +23,19 @@ smoke:
 baseline:
 	uv run --frozen --extra models --extra notebook retail-forecast baseline --config $(CONFIG) $(TRACKING_ARGS)
 
+compare:
+	uv run --frozen --extra models --extra notebook retail-forecast compare --config $(CONFIG)
+
 train:
-	uv run --frozen retail-forecast train --config $(CONFIG)
+	@test -n "$(MODEL_ID)" || (echo "Set MODEL_ID=seasonal_naive_7d|seasonal_average_4w|lightgbm_global" >&2; exit 2)
+	uv run --frozen $(MODEL_EXTRAS) retail-forecast train --config $(CONFIG) --model-id "$(MODEL_ID)"
 
 evaluate:
 	uv run --frozen retail-forecast evaluate --config $(CONFIG)
 
+request:
+	uv run --frozen retail-forecast request --config $(CONFIG)
+
 predict:
-	@test -n "$(TRAINING_RUN)" || (echo "Set TRAINING_RUN=<completed training run ID>" >&2; exit 2)
-	uv run --frozen retail-forecast predict --config $(CONFIG) --training-run "$(TRAINING_RUN)"
+	@test -n "$(BUNDLE)" || (echo "Set BUNDLE=<training_run_id>:models/<model_id>/<slot>" >&2; exit 2)
+	uv run --frozen $(MODEL_EXTRAS) retail-forecast predict --config $(CONFIG) --bundle "$(BUNDLE)" $(if $(REQUEST),--request "$(REQUEST)",--kaggle-submission)

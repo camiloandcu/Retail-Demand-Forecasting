@@ -11,10 +11,18 @@ from retail_forecast.availability import POLICIES
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_KINDS = {
-    "training": {"model", "dataset_summary"},
+    "training": {"bundle_manifest", "dataset_summary", "verification"},
     "evaluation": {"evaluation"},
-    "prediction": {"submission"},
-    "smoke": {"model", "dataset_summary", "evaluation", "submission", "smoke_summary"},
+    "prediction": {"forecast"},
+    "request": {"forecast_request"},
+    "smoke": {
+        "bundle_manifest",
+        "dataset_summary",
+        "evaluation",
+        "forecast",
+        "submission",
+        "smoke_summary",
+    },
     "baseline": {
         "oof",
         "segmented_metrics",
@@ -24,6 +32,7 @@ REQUIRED_KINDS = {
         "figure",
         "native_model",
     },
+    "comparison": {"oof", "segmented_metrics", "experiment_summary"},
     "audit": {"audit_manifest", "audit_table", "figure"},
     "features": {"split_manifest", "feature_manifest"},
 }
