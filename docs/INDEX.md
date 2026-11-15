@@ -5,6 +5,7 @@
 - [Execution records and explicit result selection](02_execution_records.md)
 - [Availability policies and the forecast request boundary](03_availability_policies.md)
 - [Model bundles, fresh-process prediction and capsules](04_model_bundles.md)
+- [Joint recurrent forecasting, recovery and execution](05_recurrent_forecasting.md)
 - [Data access and local file layout](../data/README.md)
 - [First academic report](../ENTREGA1.pdf)
 

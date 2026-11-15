@@ -3,9 +3,10 @@ MODEL_ID ?=
 BUNDLE ?=
 REQUEST ?=
 TRACKING_ARGS ?=
+NEURAL_EXTRAS = $(if $(filter gru_global,$(MODEL_ID))$(findstring gru_global,$(BUNDLE)),--extra neural,)
 MODEL_EXTRAS = $(if $(filter lightgbm_global,$(MODEL_ID))$(findstring lightgbm_global,$(BUNDLE))$(findstring capsule:,$(BUNDLE)),--extra models,)
 
-.PHONY: install test lint smoke baseline compare train evaluate request predict
+.PHONY: install test lint smoke baseline compare train evaluate request predict recurrent
 
 install:
 	uv sync --frozen --extra dev --extra notebook
@@ -28,7 +29,7 @@ compare:
 
 train:
 	@test -n "$(MODEL_ID)" || (echo "Set MODEL_ID=seasonal_naive_7d|seasonal_average_4w|lightgbm_global" >&2; exit 2)
-	uv run --frozen $(MODEL_EXTRAS) retail-forecast train --config $(CONFIG) --model-id "$(MODEL_ID)"
+	uv run --frozen $(MODEL_EXTRAS) $(NEURAL_EXTRAS) retail-forecast train --config $(CONFIG) --model-id "$(MODEL_ID)"
 
 evaluate:
 	uv run --frozen retail-forecast evaluate --config $(CONFIG)
@@ -38,4 +39,7 @@ request:
 
 predict:
 	@test -n "$(BUNDLE)" || (echo "Set BUNDLE=<training_run_id>:models/<model_id>/<slot>" >&2; exit 2)
-	uv run --frozen $(MODEL_EXTRAS) retail-forecast predict --config $(CONFIG) --bundle "$(BUNDLE)" $(if $(REQUEST),--request "$(REQUEST)",--kaggle-submission)
+	uv run --frozen $(MODEL_EXTRAS) $(NEURAL_EXTRAS) retail-forecast predict --config $(CONFIG) --bundle "$(BUNDLE)" $(if $(REQUEST),--request "$(REQUEST)",--kaggle-submission)
+
+recurrent:
+	uv run --frozen --extra neural retail-forecast recurrent --config $(CONFIG)

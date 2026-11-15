@@ -10,12 +10,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 import pandas as pd
 
 from retail_forecast.data_contracts import ForecastRequest, SeriesKey
 from retail_forecast.features import FeatureBatch, FeatureSpec
+
+if TYPE_CHECKING:
+    from retail_forecast.sequences import SequencePanel
 
 RAW_PREDICTION_COLUMNS = ("store_nbr", "family", "target_date", "prediction")
 
@@ -63,6 +66,7 @@ class TrainingSet:
     batch: FeatureBatch | None
     training_origins: tuple[pd.Timestamp, ...]
     params: Mapping[str, Any]
+    sequences: SequencePanel | None = None
 
 
 @dataclass(frozen=True)

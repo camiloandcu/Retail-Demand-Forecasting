@@ -68,7 +68,7 @@ def predict_bundle(
     values = raw["prediction"].to_numpy(dtype=np.float64)
     if not np.isfinite(values).all():
         raise ForecastRequestError("NONFINITE_VALUE", "prediction")
-    clipped = int((values < 0).sum())
+    clipped = int((values < 0).sum()) + int(raw.attrs.get("clipped_negative_count", 0))
     frame = raw[["store_nbr", "family", "target_date"]].copy()
     frame["store_nbr"] = frame["store_nbr"].astype("int64")
     frame["family"] = frame["family"].astype(str)
@@ -103,6 +103,7 @@ def predict_bundle(
         "rows": len(frame),
         "series": len(request.series_keys),
         "clipped_negative_count": clipped,
+        "sparse_context_count": int(raw.attrs.get("sparse_context_count", 0)),
         "bundle_id": manifest["bundle_id"],
         "model_id": manifest["model_id"],
     }

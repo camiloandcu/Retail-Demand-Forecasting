@@ -19,7 +19,12 @@ def setup_cell(path):
 
 @pytest.mark.parametrize(
     "name",
-    ["01_data_audit_eda.ipynb", "02_feature_pipeline.ipynb", "03_non_neural_baselines.ipynb"],
+    [
+        "01_data_audit_eda.ipynb",
+        "02_feature_pipeline.ipynb",
+        "03_non_neural_baselines.ipynb",
+        "04_recurrent_forecast.ipynb",
+    ],
 )
 def test_initial_cell_reentry_and_dirty_refusal(name, checkout, monkeypatch):  # noqa: F811
     root, revision, origin = checkout
@@ -74,7 +79,12 @@ def test_notebook_pin_contains_all_runtime_and_acquisition_changes():
 
 @pytest.mark.parametrize(
     "name",
-    ["01_data_audit_eda.ipynb", "02_feature_pipeline.ipynb", "03_non_neural_baselines.ipynb"],
+    [
+        "01_data_audit_eda.ipynb",
+        "02_feature_pipeline.ipynb",
+        "03_non_neural_baselines.ipynb",
+        "04_recurrent_forecast.ipynb",
+    ],
 )
 def test_colab_clone_obtains_pin_reachable_only_from_pull_request_ref(name, tmp_path, monkeypatch):
     """After a squash merge the pinned commit is on no branch; a plain clone lacks it."""

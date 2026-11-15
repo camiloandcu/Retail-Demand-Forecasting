@@ -79,3 +79,25 @@ jobs:
           request_dir=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["request_dir"])' "${RUNNER_TEMP}/request.json")
           uv run --frozen retail-forecast predict --config configs/smoke.yaml \
             --bundle "$bundle" --request "$request_dir"
+
+  neural-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          version: "0.12.0"
+      - name: Fetch pinned notebook revisions
+        run: python3 scripts/fetch_notebook_revisions.py
+      - name: Install locked neural profile
+        run: uv sync --frozen --extra dev --extra neural
+      - name: Real CPU optimization, recovery and offline capsule parity
+        env:
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: uv run --frozen --extra neural pytest tests/test_sequences.py tests/test_gru.py

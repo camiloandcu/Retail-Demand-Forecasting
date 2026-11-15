@@ -110,6 +110,8 @@ def serialize_request(request: ForecastRequest) -> tuple[dict[str, bytes], dict[
             for name in tables
         },
     }
+    if request.history_start is not None:
+        manifest["history_start"] = request.history_start.date().isoformat()
     return files, manifest
 
 
@@ -134,7 +136,10 @@ def request_files(directory: Path) -> dict[str, bytes]:
     directory = _trusted_path(directory)
     manifest_bytes = read_regular_bytes(directory, MANIFEST_NAME)
     manifest = parse_json_bytes(manifest_bytes)
-    if not isinstance(manifest, dict) or set(manifest) != MANIFEST_KEYS:
+    if not isinstance(manifest, dict) or set(manifest) not in (
+        MANIFEST_KEYS,
+        MANIFEST_KEYS | {"history_start"},
+    ):
         raise ValueError("Invalid request manifest schema")
     if manifest["schema_version"] != 1 or manifest["kind"] != "forecast_request":
         raise ValueError("Unsupported request manifest")
@@ -180,6 +185,9 @@ def request_from_files(contents: dict[str, bytes]) -> ForecastRequest:
         stores=frames["stores"],
         calendar=frames["calendar"],
         competition_oil=frames.get("competition_oil"),
+        history_start=pd.Timestamp(manifest["history_start"])
+        if "history_start" in manifest
+        else None,
     )
     validate_forecast_request(request, supported_series=keys)
     return request

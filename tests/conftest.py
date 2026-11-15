@@ -25,3 +25,19 @@ def synthetic_config(tmp_path: Path) -> ProjectConfig:
     )
     write_synthetic_dataset(config)
     return config
+
+
+@pytest.fixture
+def sequence_data(tmp_path):
+    import pandas as pd
+
+    from retail_forecast.data import load_frames
+    from retail_forecast.training import prepare_feature_frames
+
+    config = load_config("configs/gru-smoke.yaml")
+    config = replace(config, paths=PathsConfig(tmp_path / "data", tmp_path / "runs"))
+    write_synthetic_dataset(config)
+    frames = prepare_feature_frames(load_frames(config.paths.raw_data_dir))
+    series = tuple(sorted(set(map(tuple, frames["train.csv"][["store_nbr", "family"]].to_numpy()))))
+    cutoff = pd.Timestamp(config.validation.origins[0])
+    return config, frames, series, cutoff

@@ -21,6 +21,8 @@ ADAPTERS: Final[dict[str, tuple[str, str, frozenset[int]]]] = {
     ),
     "lightgbm_global": ("retail_forecast.models.lightgbm", "LightGBMAdapter", frozenset({1})),
 }
+COMPARATOR_MODEL_IDS: Final = tuple(ADAPTERS)
+ADAPTERS["gru_global"] = ("retail_forecast.models.gru", "GRUAdapter", frozenset({1}))
 SERVING_MODEL_IDS: Final = tuple(ADAPTERS)
 
 

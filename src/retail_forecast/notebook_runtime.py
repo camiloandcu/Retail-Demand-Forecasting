@@ -80,8 +80,12 @@ def clear_loaded_bytecode(package: str) -> None:
                 ) from None
 
 
-def selected_profile(root: Path, *, models: bool = False, colab: bool = False) -> Path:
+def selected_profile(
+    root: Path, *, models: bool = False, colab: bool = False, neural: bool = False
+) -> Path:
     """Select the locked profile without Colab's managed notebook packages."""
+    if neural:
+        return root / "constraints" / ("06-colab-neural.txt" if colab else "05-notebook-neural.txt")
     if colab:
         filename = "04-colab-models.txt" if models else "03-colab.txt"
     else:
@@ -89,7 +93,9 @@ def selected_profile(root: Path, *, models: bool = False, colab: bool = False) -
     return root / "constraints" / filename
 
 
-def profile_name(*, models: bool, colab: bool) -> str:
+def profile_name(*, models: bool, colab: bool, neural: bool = False) -> str:
+    if neural:
+        return "colab-neural" if colab else "neural"
     if colab:
         return "colab-models" if models else "colab"
     return "models" if models else "notebook"
@@ -104,14 +110,14 @@ def profile_distributions(profile: Path) -> set[str]:
     }
 
 
-def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
+def install(root: Path, *, models: bool = False, colab: bool = False, neural: bool = False) -> None:
     """Install hashed dependencies into this interpreter, then the pinned project."""
-    profile = selected_profile(root, models=models, colab=colab)
+    profile = selected_profile(root, models=models, colab=colab, neural=neural)
     lock_hash = hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest()
     if f"# uv.lock SHA256: {lock_hash}" not in profile.read_text():
         raise RuntimeError("Constraints do not match uv.lock; regenerate before publishing.")
     profile_hash = hashlib.sha256(profile.read_bytes()).hexdigest()
-    name = profile_name(models=models, colab=colab)
+    name = profile_name(models=models, colab=colab, neural=neural)
     marker = (
         Path(tempfile.gettempdir())
         / f"retail-forecast-{name}-py{sys.version_info.major}{sys.version_info.minor}.json"
@@ -168,12 +174,18 @@ def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
 
 
 def bootstrap(
-    root: Path, revision: str, origin: str, *, models: bool = False, colab: bool = False
+    root: Path,
+    revision: str,
+    origin: str,
+    *,
+    models: bool = False,
+    colab: bool = False,
+    neural: bool = False,
 ) -> dict:
     """Validate, install and report identities; refuse mixed-source kernel state."""
     root = validate_checkout(root, revision, origin)
     verify_loaded_source(root)
-    selected = selected_profile(root, models=models, colab=colab)
+    selected = selected_profile(root, models=models, colab=colab, neural=neural)
     installable = profile_distributions(selected)
     # Dependencies imported before an upgrade remain resident. Detect disagreement
     # after installation and require restart instead of running mixed versions.
@@ -211,7 +223,10 @@ def bootstrap(
         for name in stale_modules:
             clear_loaded_bytecode(name)
         raise RuntimeError("Loaded dependency versions differ. Restart kernel.")
-    install(root, models=models, colab=colab)
+    if neural:
+        install(root, models=models, colab=colab, neural=True)
+    else:
+        install(root, models=models, colab=colab)
     changed_modules = set()
     for distribution, (old, name) in loaded.items():
         if old != importlib.metadata.version(distribution):
@@ -234,7 +249,7 @@ def bootstrap(
         "code_revision": git(root, "rev-parse", "HEAD"),
         "package_source": str(source),
         "lock_sha256": hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest(),
-        "dependency_profile": profile_name(models=models, colab=colab),
+        "dependency_profile": profile_name(models=models, colab=colab, neural=neural),
         "installer": (
             f"pip {importlib.metadata.version('pip')}"
             if importlib.util.find_spec("pip") is not None

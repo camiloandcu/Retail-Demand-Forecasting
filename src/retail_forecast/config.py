@@ -81,6 +81,24 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True)
+class RecurrentConfig:
+    """One preregistered joint GRU recipe, separate from historical baselines."""
+
+    loss: str = "original_log_mse"
+    hidden_size: int = 64
+    batch_size: int = 256
+    max_epochs: int = 40
+    patience: int = 5
+    learning_rate: float = 0.001
+    gradient_clip: float = 1.0
+    device: str = "cpu"
+    host_memory_gib: float = 10.0
+    gpu_memory_gib: float = 5.0
+    training_minutes: float = 90.0
+    cpu_threads: int = 2
+
+
+@dataclass(frozen=True)
 class ProjectConfig:
     """Complete project configuration shared by all entry points."""
 
@@ -93,6 +111,7 @@ class ProjectConfig:
     runtime: RuntimeConfig
     config_path: Path
     project_root: Path
+    recurrent: RecurrentConfig | None = None
 
 
 SCHEMA: dict[str, set[str]] = {
@@ -177,9 +196,30 @@ def load_config(path: str | Path) -> ProjectConfig:
     if not config_path.is_file():
         raise ConfigError(f"Configuration file does not exist: {config_path}")
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or set(raw) != set(SCHEMA):
+    if not isinstance(raw, dict) or set(raw) - {"recurrent"} != set(SCHEMA):
         raise ConfigError(f"Top-level sections must be exactly {sorted(SCHEMA)}")
 
+    recurrent = None
+    if "recurrent" in raw:
+        settings = raw["recurrent"]
+        defaults = RecurrentConfig()
+        if not isinstance(settings, dict) or set(settings) != set(defaults.__dataclass_fields__):
+            raise ConfigError("recurrent must declare every recipe field exactly")
+        for name in ("hidden_size", "batch_size", "max_epochs", "patience", "cpu_threads"):
+            _positive_int(settings[name], f"recurrent.{name}")
+        for name in (
+            "learning_rate",
+            "gradient_clip",
+            "host_memory_gib",
+            "gpu_memory_gib",
+            "training_minutes",
+        ):
+            _bounded_float(settings[name], f"recurrent.{name}", 0, 1e6)
+        if settings["device"] not in {"cpu", "cuda"}:
+            raise ConfigError("recurrent.device must be cpu or cuda")
+        if settings["loss"] != "original_log_mse":
+            raise ConfigError("recurrent.loss must be original_log_mse")
+        recurrent = RecurrentConfig(**settings)
     sections = {name: _mapping(raw[name], name) for name in SCHEMA}
     project_root = config_path.parent.parent
     mode = str(sections["project"]["mode"])
@@ -231,6 +271,7 @@ def load_config(path: str | Path) -> ProjectConfig:
 
     return ProjectConfig(
         mode=mode,
+        recurrent=recurrent,
         paths=PathsConfig(
             raw_data_dir=resolve_project_path(sections["paths"]["raw_data_dir"]),
             artifacts_dir=resolve_project_path(sections["paths"]["artifacts_dir"]),

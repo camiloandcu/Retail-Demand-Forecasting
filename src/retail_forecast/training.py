@@ -109,6 +109,7 @@ def build_training_set(
     params: Mapping[str, Any],
     name: str,
     cache: FeatureBatchCache | None = None,
+    needs_sequences: bool = False,
 ) -> tuple[TrainingSet, dict[str, Any]]:
     """Build the cutoff request and, when needed, labeled origins ending by the cutoff."""
 
@@ -123,7 +124,7 @@ def build_training_set(
     origins: tuple[pd.Timestamp, ...] = ()
     batch = None
     record: dict[str, Any] = {"training_origins": [], "training_rows": 0}
-    if needs_batch:
+    if needs_batch or needs_sequences:
         origins = cutoff_training_origins(
             cutoff,
             spec.horizon,
@@ -132,22 +133,59 @@ def build_training_set(
             max_origins=config.baseline.max_training_origins,
             name=name,
         )
-        cache = cache or FeatureBatchCache.empty()
-        keys = [(snapshot_id, origin, spec.sha256) for origin in origins]
-        for key, origin in zip(keys, origins, strict=True):
-            if key not in cache.entries:
-                cache.entries[key] = build_origin_feature_batch(frames, origin, spec, **identity)
-        batch = combine_feature_batches([cache.entries[key] for key in keys])
-        if batch.frame["target_date"].max() > cutoff:
-            raise ValueError(f"{name} training labels cross the cutoff")
-        expected = len(origins) * len(supported_series) * spec.horizon
-        if len(batch.frame) != expected:
-            raise ValueError(f"{name} training grid is incomplete")
-        record = {
-            "training_origins": [origin.date().isoformat() for origin in origins],
-            "training_rows": len(batch.frame),
-            "training_rows_expected": expected,
-        }
+        if needs_sequences:
+            from retail_forecast.sequences import build_panel
+
+            panel = build_panel(
+                frames["train.csv"],
+                frames["transactions.csv"],
+                frames["stores.csv"],
+                frames["holidays_events.csv"],
+                series=supported_series,
+                origins=origins,
+                cutoff=cutoff,
+                policy=spec.availability_policy,
+            )
+            record = {
+                "training_origins": [o.date().isoformat() for o in origins],
+                "training_samples": len(panel.keys),
+                "sample_sha256": panel.identity,
+                "training_rows": len(panel.keys) * spec.horizon,
+                "candidate_origins": [
+                    {
+                        "origin": candidate.date().isoformat(),
+                        "eligible": candidate in origins,
+                        "reason": "selected" if candidate in origins else "incomplete_target_dates",
+                    }
+                    for candidate in [
+                        cutoff
+                        - pd.Timedelta(
+                            days=spec.horizon + i * config.baseline.training_origin_stride_days
+                        )
+                        for i in range(config.baseline.max_training_origins)
+                    ]
+                ],
+                "omitted_series_windows": len(origins) * len(supported_series) - len(panel.keys),
+            }
+        else:
+            cache = cache or FeatureBatchCache.empty()
+            keys = [(snapshot_id, origin, spec.sha256) for origin in origins]
+            for key, origin in zip(keys, origins, strict=True):
+                if key not in cache.entries:
+                    cache.entries[key] = build_origin_feature_batch(
+                        frames, origin, spec, **identity
+                    )
+            batch = combine_feature_batches([cache.entries[key] for key in keys])
+            if batch.frame["target_date"].max() > cutoff:
+                raise ValueError(f"{name} training labels cross the cutoff")
+            expected = len(origins) * len(supported_series) * spec.horizon
+            if len(batch.frame) != expected:
+                raise ValueError(f"{name} training grid is incomplete")
+            record = {
+                "training_origins": [origin.date().isoformat() for origin in origins],
+                "training_rows": len(batch.frame),
+                "training_rows_expected": expected,
+            }
     training = TrainingSet(
         cutoff=cutoff,
         request=request,
@@ -156,5 +194,6 @@ def build_training_set(
         batch=batch,
         training_origins=origins,
         params=params,
+        sequences=panel if needs_sequences else None,
     )
     return training, record
