@@ -1,0 +1,37 @@
+project:
+  mode: full
+paths:
+  raw_data_dir: data/raw
+  artifacts_dir: artifacts/asof
+data:
+  availability_policy: asof_v1
+  source: kaggle
+  expected_stores: 54
+  expected_families: 33
+  fixture_start_date: "2020-01-01"
+  fixture_history_days: 64
+forecast:
+  horizon: 16
+  seasonal_period: 7
+validation:
+  origins:
+    - "2017-06-28"
+    - "2017-07-14"
+    - "2017-07-30"
+baseline:
+  sanity_model: zero
+  seasonal_average_weeks: 4
+  training_origin_stride_days: 16
+  max_training_origins: 24
+  neural_min_relative_improvement: 0.02
+  oof_git_limit_mb: 10
+  tree_model: lightgbm
+  tree_n_estimators: 300
+  tree_learning_rate: 0.05
+  tree_num_leaves: 31
+  tree_min_child_samples: 100
+  tree_feature_fraction: 0.8
+  tree_l2: 1.0
+runtime:
+  seed: 2026
+  log_level: INFO

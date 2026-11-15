@@ -1,0 +1,19 @@
+{
+  "source_repository": "https://github.com/camiloandcu/Retail-Demand-Forecasting",
+  "extraction_revision": "2619e2a7f63548c7978c96afcc0242ddadd54cc3",
+  "primary_gru_source_revision": "e3df3963d4702dafa275129f15a57a440a81228c",
+  "status": "inherited verified local study; not rerun in the academic repository",
+  "files": [
+    {
+      "file": "results/recurrent_results.csv",
+      "source_run": "20261115T073908848249Z-18b20f57",
+      "sha256": "1eebb2b6be29024986fc3305f635d651c400e10ca6bfcdb47131fc53209c4f23"
+    },
+    {
+      "file": "results/comparison_results.csv",
+      "source_run": "20261114T192418979737Z-33f4cb37",
+      "sha256": "3a3711e8034c8b4b3695e140daadb23505446133a9e435fb7f7208a8ed53465a"
+    }
+  ],
+  "original_report_sha256": "ed8ca646059512f61ea539f77a06d501c10b5f2e777f7b7697b0a4a05d69a652"
+}
