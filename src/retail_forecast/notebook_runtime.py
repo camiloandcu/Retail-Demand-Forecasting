@@ -143,7 +143,8 @@ def install(root: Path, *, models: bool = False, colab: bool = False, neural: bo
         except (OSError, json.JSONDecodeError):
             receipt = {}
         if (
-            receipt.get("lock_sha256") == lock_hash
+            receipt.get("project_root") == str(root.resolve())
+            and receipt.get("lock_sha256") == lock_hash
             and receipt.get("profile_sha256") == profile_hash
             and receipt.get("python") == list(sys.version_info[:2])
             and receipt.get("freeze_sha256") == freeze_hash()
@@ -161,6 +162,7 @@ def install(root: Path, *, models: bool = False, colab: bool = False, neural: bo
                 "Locked installation failed. Check connectivity/runtime; retry setup."
             )
     receipt = {
+        "project_root": str(root.resolve()),
         "lock_sha256": lock_hash,
         "profile_sha256": profile_hash,
         "python": list(sys.version_info[:2]),
