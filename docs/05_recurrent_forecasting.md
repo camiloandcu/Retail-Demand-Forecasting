@@ -138,3 +138,9 @@ and scaler fitting disabled. All 28,512 keys matched and maximum absolute
 prediction difference was 0.0, with the saved scaler checksum unchanged. This
 establishes observed reload parity in that environment, not identical training
 across hardware. Clean Colab and human interpretation evidence remain pending.
+
+A separate clean full execution of Notebook 04 on Python 3.13.14/PyTorch 2.15.0
+reproduced all 85,536 keyed predictions exactly: maximum absolute difference 0.0
+and identical pooled RMSLE. It took 599.71 seconds including notebook setup and
+its resource probe; its selection/refit loops took an additional 88.15 seconds.
+This verification run retains separate identity and compute accounting.
