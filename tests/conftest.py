@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
+
+os.environ.setdefault("MPLBACKEND", "Agg")
 
 from retail_forecast.config import PathsConfig, ProjectConfig, load_config
 from retail_forecast.data import write_synthetic_dataset
