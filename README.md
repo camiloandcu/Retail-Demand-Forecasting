@@ -11,6 +11,11 @@ competition-supplied covariates, including future oil values; they do not establ
 operational performance. See the saved results and discussion in
 [Notebook 03](03_non_neural_baselines.ipynb).
 
+A separate `asof_v1` study produced pooled OOF RMSLE **0.46764** for the joint
+GRU and **0.39868** for LightGBM on exactly matching 85,536 target rows. These
+local temporal results retain the promotion/calendar vintage assumptions; see the
+[recurrent study evidence](docs/05_recurrent_forecasting.md#measured-local-study).
+
 Four notebooks, non-neural experiments and joint GRU training are implemented.
 The CLI supports explicit seasonal, LightGBM and GRU bundles with offline reload.
 Transfer learning, the final academic report/video and the analyst demo remain

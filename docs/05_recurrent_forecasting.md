@@ -104,3 +104,37 @@ complete matched study, cost evidence and the separate selection decision.
 Native bytes APIs were checked on 2026-11-15 against the
 [official safetensors Torch documentation](https://huggingface.co/docs/safetensors/api/torch).
 Resolved package versions and hashes remain in the lock and generated profiles.
+
+## Measured local study
+
+On November 15, 2026, the default full recipe completed at
+[source revision e3df396](https://github.com/camiloandcu/Retail-Demand-Forecasting/tree/e3df3963d4702dafa275129f15a57a440a81228c),
+using Python 3.10.12, PyTorch 2.14.1 and a GTX 1650/CUDA 13.0 runtime. Study ID:
+`20261115T073908848249Z-18b20f57`. Every fold contains 1,782 series × 16 horizons;
+the OOF table has 85,536 unique rows. An independent audit verified all artifact
+hashes, exact raw-source hashes, observed labels and comparator-key agreement.
+
+| Slice | RMSLE | Selected refit epochs |
+| --- | ---: | ---: |
+| Fold 1 | 0.433968 | 4 |
+| Fold 2 | 0.489647 | 2 |
+| Fold 3 | 0.477472 | 6 |
+| Pooled OOF | 0.467640 | — |
+
+On those exact keys under `asof_v1`, LightGBM achieved 0.398680 and the four-week
+seasonal average achieved 0.468430. The tree has lower error than this GRU; no
+promotion follows from implementing a recurrent model. These figures are separate
+from the historical competition-covariate benchmark in Notebook 03.
+
+Selection/refit loops totaled 164.99 seconds; complete fold-training attempt walls
+including setup totaled 473.19 seconds. First training start through study
+completion took 606.08 seconds. Peak host RSS was 2.12344 GiB using the process-
+lifetime high-water method; peak Torch GPU allocation was 0.120915 GiB, which is
+different from total device/process GPU memory. Probe and verification reruns are
+additional compute. CUDA deterministic algorithms were not enforced.
+
+A separate CPU process reloaded the full fold-1 bundle with network, model fitting
+and scaler fitting disabled. All 28,512 keys matched and maximum absolute
+prediction difference was 0.0, with the saved scaler checksum unchanged. This
+establishes observed reload parity in that environment, not identical training
+across hardware. Clean Colab and human interpretation evidence remain pending.
