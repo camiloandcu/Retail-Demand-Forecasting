@@ -617,6 +617,29 @@ def model_input_contract(batch: FeatureBatch) -> dict[str, Any]:
             "history_must_end_at_origin": True,
         },
     }
+    if batch.spec.availability_policy == "asof_v1":
+        # Import lazily: sequence construction reuses this module's calendar resolver.
+        from retail_forecast.sequences import FUTURE_CHANNELS, HISTORY_CHANNELS, STATIC_CHANNELS
+
+        payload["recurrent"] = {
+            "adapter_id": "gru_global",
+            "lookback_days": 56,
+            "history_anchor": "forecast_origin",
+            "history_tensor": {
+                "shape": ["batch", 56, 8],
+                "features": list(HISTORY_CHANNELS),
+                "must_end_at_origin": True,
+            },
+            "known_future_features": list(FUTURE_CHANNELS),
+            "known_future_tensor_shape": ["batch", 16, 12],
+            "static_categorical_features": list(STATIC_CHANNELS),
+            "target_shape": ["batch", 16],
+            "history_must_end_at_origin": True,
+            "preprocessing": "frozen_train_only_sequence_preprocessor_v1",
+            "training_loss": "original_log_mse",
+        }
+    else:
+        payload["recurrent"]["status"] = "legacy_design_description_not_a_supported_gru_policy"
     return payload
 
 

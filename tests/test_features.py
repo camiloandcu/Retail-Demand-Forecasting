@@ -280,3 +280,5 @@ def test_manifest_documents_policy_and_model_contracts(
     )
     asof_contract = model_input_contract(asof_training)
     assert "oil_target" not in asof_contract["recurrent"]["known_future_features"]
+    assert asof_contract["recurrent"]["history_tensor"]["shape"] == ["batch", 56, 8]
+    assert asof_contract["recurrent"]["known_future_tensor_shape"] == ["batch", 16, 12]
