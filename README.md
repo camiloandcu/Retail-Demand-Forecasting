@@ -11,10 +11,11 @@ competition-supplied covariates, including future oil values; they do not establ
 operational performance. See the saved results and discussion in
 [Notebook 03](03_non_neural_baselines.ipynb).
 
-Three notebooks and non-neural experiments are implemented. Recurrent training,
-transfer learning, the final academic report/video and the analyst demo remain
-pending. The current CLI training/prediction commands use seasonal naive; they do
-not yet serve the experimental LightGBM model.
+Four notebooks, non-neural experiments and joint GRU training are implemented.
+The CLI supports explicit seasonal, LightGBM and GRU bundles with offline reload.
+Transfer learning, the final academic report/video and the analyst demo remain
+pending. Recurrent Colab execution and human interpretation have separate evidence
+gates; local and synthetic checks do not establish them.
 
 The repository is intentionally code-first. Notebooks will explain and
 orchestrate the workflow, while metrics, data contracts, feature engineering,
@@ -53,6 +54,12 @@ inputs.
 [![Open 02 - Leakage-safe feature pipeline in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/02_feature_pipeline.ipynb)
 
 [![Open 03 - Non-neural baselines in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/03_non_neural_baselines.ipynb)
+
+[![Open 04 - Joint recurrent forecasting in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/04_recurrent_forecast.ipynb)
+
+The [recurrent execution guide](docs/05_recurrent_forecasting.md) covers the optional
+neural profile, frozen scaling, internal epoch selection and checkpoint recovery.
+For a bounded synthetic GRU study, use `make recurrent CONFIG=configs/gru-smoke.yaml`.
 
 Run the same baseline workflow from the command line with synthetic fixtures:
 

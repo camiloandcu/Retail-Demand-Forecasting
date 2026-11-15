@@ -83,6 +83,8 @@ def _train_one(
     run_id: str | None = None,
     resume_from: str | None = None,
 ) -> dict[str, Any]:
+    import torch
+
     from retail_forecast.models.gru import GRUAdapter, initialize
     from retail_forecast.models.gru_training import fit_epochs, pack_checkpoint, unpack_checkpoint
     from retail_forecast.pipeline import (
@@ -94,6 +96,21 @@ def _train_one(
 
     params = _recipe(config)
     attempt_started = time.monotonic()
+    hardware = {
+        "device": params["device"],
+        "name": "cpu",
+        "compute_capability": None,
+        "torch_cuda_runtime": torch.version.cuda,
+        "float32_matmul_precision": torch.get_float32_matmul_precision(),
+        "cudnn_deterministic": torch.backends.cudnn.deterministic,
+        "cudnn_benchmark": torch.backends.cudnn.benchmark,
+        "host_peak_method": "process_lifetime_ru_maxrss_linux",
+    }
+    if params["device"] == "cuda":
+        hardware["name"] = "cuda_unavailable"
+        if torch.cuda.is_available():
+            hardware["name"] = torch.cuda.get_device_name()
+            hardware["compute_capability"] = list(torch.cuda.get_device_capability())
     checkpoint, source_info, restored = None, None, None
     if resume_from:
         relative, source_info = _checkpoint_source(config, resume_from)
@@ -264,6 +281,7 @@ def _train_one(
                     }
                 ),
                 "device": params["device"],
+                "hardware": hardware,
                 "epochs": epochs,
                 "prior_training_seconds": prior_seconds,
             }
@@ -375,6 +393,7 @@ def _train_one(
             "attempt_wall_seconds": time.monotonic() - attempt_started,
             "device": params["device"],
             "precision": "float32",
+            "hardware": hardware,
             "prior_attempts": prior_attempts,
             "predecessor_wall": predecessor_wall,
             "training_seconds_method": "Epochs plus continuation; partial tail unmeasured",
