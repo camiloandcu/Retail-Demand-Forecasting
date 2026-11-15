@@ -31,6 +31,28 @@ def test_store_partition_is_fixed_and_disjoint():
     assert not set(source) & set(target)
 
 
+def test_failed_training_is_counted_and_never_completed(sequence_data, monkeypatch):
+    pytest.importorskip("torch")
+    from pathlib import Path
+
+    from retail_forecast.models import gru_training
+
+    def fail(*args, **kwargs):
+        error = RuntimeError("GRU_TIME_BUDGET_EXCEEDED")
+        error.training_resources = {"attempt_training_seconds": 1801.5}
+        raise error
+
+    monkeypatch.setattr(gru_training, "fit_epochs", fail)
+    config, _, _, _ = sequence_data
+    with pytest.raises(RuntimeError, match="TIME_BUDGET"):
+        transfer_experiment(config)
+    manifest_path = next(Path(config.paths.artifacts_dir).glob("transfer/*/manifest.json"))
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["status"] == "incomplete"
+    assert manifest["training_seconds"] == 1801.5
+    assert not (manifest_path.parent / "results.csv").exists()
+
+
 def test_transfer_smoke_has_complete_paired_evidence(sequence_data, monkeypatch):
     pytest.importorskip("torch")
     from retail_forecast import transfer

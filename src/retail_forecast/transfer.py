@@ -123,16 +123,34 @@ class _Study:
         model = initialize(pre, self.recipe["hidden_size"], self.config.runtime.seed)
         if encoder is not None:
             copy_encoder(encoder, model)
-        result = fit_epochs(
-            model,
-            panel,
-            pre,
-            params={**self.recipe, "training_minutes": remaining / 60},
-            seed=self.config.runtime.seed,
-            epochs=epochs,
-            validation=validation,
-            identity={"phase": name, "preprocessor": pre.sha256},
-        )
+        attempt_started = time.monotonic()
+        try:
+            result = fit_epochs(
+                model,
+                panel,
+                pre,
+                params={**self.recipe, "training_minutes": remaining / 60},
+                seed=self.config.runtime.seed,
+                epochs=epochs,
+                validation=validation,
+                identity={"phase": name, "preprocessor": pre.sha256},
+            )
+        except BaseException as error:
+            resources = getattr(error, "training_resources", {})
+            seconds = resources.get("attempt_training_seconds", time.monotonic() - attempt_started)
+            self.training_seconds += seconds
+            self.histories.append(
+                {
+                    "phase": name,
+                    "status": "incomplete",
+                    "error": str(error),
+                    "training_seconds": seconds,
+                    "resources": resources,
+                    "cutoff": panel.cutoff.date().isoformat(),
+                }
+            )
+            write_json(self.root / "training.json", self.histories)
+            raise
         self.training_seconds += result["training_seconds"]
         model.cpu().eval()
         folder = self.root / "models" / name

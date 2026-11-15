@@ -198,6 +198,7 @@ def fit_epochs(
                 optimizer.step()
                 total += float(loss.detach()) * len(positions) * 16
                 count += len(positions) * 16
+                check_caps()
             row = {"epoch": epoch + 1, "train_log_mse": total / count}
             if validation is not None:
                 val_panel, actual_log = validation
