@@ -141,6 +141,6 @@ across hardware. Clean Colab and human interpretation evidence remain pending.
 
 A separate clean full execution of Notebook 04 on Python 3.13.14/PyTorch 2.15.0
 reproduced all 85,536 keyed predictions exactly: maximum absolute difference 0.0
-and identical pooled RMSLE. It took 599.71 seconds including notebook setup and
-its resource probe; its selection/refit loops took an additional 88.15 seconds.
-This verification run retains separate identity and compute accounting.
+and identical pooled RMSLE. Its 599.71-second wall time includes setup, the
+resource probe and 88.15 seconds of selection/refit loops. Verification compute
+is recorded separately from the primary study.
