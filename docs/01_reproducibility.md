@@ -11,10 +11,21 @@ fijado y verifica la instalación; no modifica tu rama de trabajo.
 
 ## Google Colab
 
-Cuando este repositorio esté publicado, abre el notebook de su revisión fijada.
-La primera celda pide la URL Git del repositorio académico si no se configuró
-`RETAIL_FORECAST_REPO_URL`. Clona una revisión inmutable de este mismo proyecto.
-La publicación todavía está pendiente; no uses la URL del repositorio anterior.
+Abre los enlaces de Colab del README: corresponden a la revisión inmutable
+`a2c2303a2583f848631763f599126ee0a92daa97` de la rama `academic/submission`.
+La URL académica confirmada por el titular es
+`https://github.com/camiloandcu/Retail-Demand-Forecasting`. Esta carpeta local
+no sincroniza ni necesita ejecutar la carpeta del estudio anterior.
+Cada notebook clona código fijado en `4a6748b8143ef09c83d899576f98c9572d934ee1`.
+
+1. Para notebooks 04 y 05, selecciona Entorno de ejecución → Cambiar tipo de
+   entorno de ejecución → GPU T4 gratuita. No actives cómputo de pago.
+2. Sube el ZIP a `/content/store-sales-time-series-forecasting.zip`, o coloca sus
+   siete CSV en `/content/data/raw`. En la sesión asistida, MCP ya transfirió
+   el ZIP y verificó su hash; esto no sustituye ejecutar los notebooks completos.
+3. Ejecuta todas las celdas en orden. `full` es el modo predeterminado.
+4. Guarda el notebook con sus salidas y los directorios de ejecución antes de
+   cerrar la sesión. Para repetir un escritor completado se crea otra ejecución.
 
 Para una comprobación breve, agrega antes de la primera celda:
 
@@ -24,8 +35,7 @@ os.environ["RETAIL_FORECAST_MODE"] = "smoke"
 os.environ["RETAIL_FORECAST_POLICY"] = "asof_v1"
 ```
 
-Para estudiar la competencia, cambia el modo a `full` en una sesión limpia.
-El notebook 04 requiere GPU CUDA para su configuración completa y ejecuta primero
+Los notebooks 04 y 05 requieren GPU CUDA para su configuración completa. El 04 ejecuta primero
 una prueba de recursos sin evaluar los horizontes externos. Los datos completos
 necesitan el acceso del titular a Kaggle o el ZIP descrito en la guía de datos.
 No compartas tokens ni los guardes en celdas o salidas.
@@ -55,4 +65,59 @@ independiente de la extracción no dejó hallazgos materiales abiertos.
 Las copias ejecutadas, el resumen `notebook-smoke.json` y el resultado de pruebas
 `extraction-tests.xml` se conservan localmente en `artifacts/verification/`.
 Los resultados sintéticos no son evidencia de precisión del modelo. La ejecución
-completa en Colab y los pendientes académicos del README siguen abiertos.
+real posterior se documenta en la sección de verificación completa; el README
+registra los pendientes humanos actuales.
+
+## Adaptación y preparación de Colab : 15 de noviembre de 2026
+
+- Los siete CSV locales coinciden con los hashes esperados de Kaggle: 3.000.888
+  filas de entrenamiento, 28.512 de test, 54 tiendas y 33 familias. Evidencia local:
+  `artifacts/verification/academic-data-validation.json`.
+- El notebook 05 completó sus seis celdas de código sin errores en modo sintético,
+  en un entorno local separado: `artifacts/verification/05_transfer_adaptation.ipynb`
+  y `notebook05-smoke.log`. El primer intento con el entorno de desarrollo se
+  detuvo por un editable de otra copia; se corrigió usando un entorno limpio,
+  sin cambiar las importaciones ni tratar ese fallo como resultado del modelo.
+- Suite previa al ajuste final de presupuesto: 34 pruebas aprobadas. Después,
+  cuatro pruebas de transferencia aprobadas, incluida interrupción contabilizada.
+  La revisión independiente del código corrigió dos hallazgos de presupuesto y
+  no dejó defectos materiales abiertos. La ejecución real en GPU aún no fue
+  demostrada por esa revisión.
+- MCP confirmó ejecución remota en Python 3.13.16 con Tesla T4 de 15.360 MiB;
+  se transfirieron los siete CSV al runtime y se verificó el ZIP. Esta fase
+  preparó un entorno aislado; su conexión por sí sola no acreditaba ejecución
+  completa. La verificación posterior se registra a continuación.
+
+La asistencia MCP utiliza un puente local temporal excluido de Git. Su enlace de
+emparejamiento no se guarda en los documentos ni se incluyen tokens en salidas.
+
+
+## Verificación completa en Colab : 15 de noviembre de 2026
+
+Se completaron los notebooks 01–05, modo full, datos reales y kernels nuevos,
+sobre Tesla T4 (15.360 MiB), Python 3.13.16 y PyTorch 2.15.0+cu132. Se preparó
+un entorno aislado con los perfiles de dependencias fijados; cada notebook ejecutó
+su preparación y su código, sin omitir celdas. El verificador fue
+`scripts/verify_notebooks.py` de la revisión 12d8490. Los notebooks corresponden
+a a2c2303 y el código compartido a 4a6748b, con SHA completos en el recibo.
+
+| Notebook | Celdas ejecutadas | Errores | Segundos totales |
+| --- | ---: | ---: | ---: |
+| 01 | 14 | 0 | 41,42 |
+| 02 | 9 | 0 | 45,20 |
+| 03 | 9 | 0 | 240,66 |
+| 04 | 7 | 0 | 248,26 |
+| 05 | 6 | 0 | 101,14 |
+
+El notebook 02 ejecutó sus 19 pruebas de cortes y fugas. El 04 entrenó la GRU y
+comprobó paridad tras recargar sus pesos; el 05 completó los tres cortes emparejados
+sin reducir la receta. Los tiempos incluyen las celdas, no la transferencia inicial
+de datos ni la instalación previa del entorno aislado.
+
+Evidencia pública compacta: `results/colab_execution.json` y
+`results/colab_provenance.json`. Evidencia local completa descargada y verificada:
+`artifacts/verification/colab-full/export/academic-verification/full/` contiene
+los cinco notebooks con salidas; el directorio hermano `artifacts/` conserva
+métricas, predicciones y pesos. Los archivos de respaldo y sus SHA constan en la
+procedencia. Los datos y pesos permanecen excluidos de Git. No se ha verificado
+el video, la revisión humana ni la presentación institucional.
