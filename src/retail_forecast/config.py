@@ -94,7 +94,7 @@ class RecurrentConfig:
     device: str = "cpu"
     host_memory_gib: float = 10.0
     gpu_memory_gib: float = 5.0
-    training_minutes: float = 90.0
+    training_minutes: float | None = 90.0
     cpu_threads: int = 2
 
 
@@ -214,9 +214,10 @@ def load_config(path: str | Path) -> ProjectConfig:
             "gpu_memory_gib",
             "training_minutes",
         ):
-            _bounded_float(settings[name], f"recurrent.{name}", 0, 1e6)
-        if settings["device"] not in {"cpu", "cuda"}:
-            raise ConfigError("recurrent.device must be cpu or cuda")
+            if name != "training_minutes" or settings[name] is not None:
+                _bounded_float(settings[name], f"recurrent.{name}", 0, 1e6)
+        if settings["device"] not in {"auto", "cpu", "cuda"}:
+            raise ConfigError("recurrent.device must be auto, cpu or cuda")
         if settings["loss"] != "original_log_mse":
             raise ConfigError("recurrent.loss must be original_log_mse")
         recurrent = RecurrentConfig(**settings)

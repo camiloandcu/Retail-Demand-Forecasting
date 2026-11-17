@@ -1,6 +1,7 @@
 """Transfer boundaries, temporal selection and paired forecast evidence."""
 
 import json
+from dataclasses import replace
 
 import numpy as np
 import pandas as pd
@@ -53,11 +54,13 @@ def test_failed_training_is_counted_and_never_completed(sequence_data, monkeypat
     assert not (manifest_path.parent / "results.csv").exists()
 
 
-def test_transfer_smoke_has_complete_paired_evidence(sequence_data, monkeypatch):
+@pytest.mark.parametrize("minutes", [2.0, None])
+def test_transfer_smoke_has_complete_paired_evidence(sequence_data, monkeypatch, minutes):
     pytest.importorskip("torch")
     from retail_forecast import transfer
 
     config, _, _, _ = sequence_data
+    config = replace(config, recurrent=replace(config.recurrent, training_minutes=minutes))
     observed = []
     original = transfer._Study.train
 
@@ -79,6 +82,9 @@ def test_transfer_smoke_has_complete_paired_evidence(sequence_data, monkeypatch)
                 if "/selection/" in name:
                     expected -= pd.Timedelta(days=16)
                 assert cutoff == expected == pd.Timestamp(fit_cutoff)
+    feasibility = json.loads((root / "feasibility.json").read_text())
+    assert feasibility["budget_seconds"] == (None if minutes is None else minutes * 60)
+    assert feasibility["passed"]
     predictions = pd.read_csv(root / "predictions.csv")
     assert np.isfinite(predictions.prediction).all()
     assert (predictions.prediction >= 0).all()

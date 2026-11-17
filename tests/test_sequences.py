@@ -161,3 +161,42 @@ def test_declared_calendar_coverage_allows_missing_leading_day(sequence_data):
         validate_forecast_request(
             replace(sparse, history_start=None), supported_series=series, min_context_days=56
         )
+
+
+@pytest.mark.parametrize("minutes, should_fail", [(None, False), (2.0, True)])
+def test_training_can_finish_without_elapsed_cutoff(
+    sequence_data, monkeypatch, minutes, should_fail
+):
+    from dataclasses import asdict
+    from types import SimpleNamespace
+
+    from retail_forecast.models import gru_training
+    from retail_forecast.models.gru import initialize
+
+    panel = panel_from(sequence_data)
+    pre = SequencePreprocessor.fit(panel, cutoff=panel.cutoff)
+    config = sequence_data[0]
+    params = {**asdict(config.recurrent), "device": "auto", "training_minutes": minutes}
+    clock = iter(range(0, 1_000_000, 10_000))
+    monkeypatch.setattr(gru_training, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+    model = initialize(pre, params["hidden_size"], config.runtime.seed)
+
+    def train():
+        return gru_training.fit_epochs(
+            model,
+            panel,
+            pre,
+            params=params,
+            seed=config.runtime.seed,
+            epochs=1,
+            identity={"phase": "unlimited-time-test"},
+        )
+
+    if should_fail:
+        with pytest.raises(RuntimeError, match="GRU_TIME_BUDGET_EXCEEDED"):
+            train()
+    else:
+        result = train()
+        assert len(result["history"]) == 1
+        assert result["training_seconds"] > 90 * 60
+        assert np.isfinite(result["history"][0]["train_log_mse"])

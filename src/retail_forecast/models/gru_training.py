@@ -17,6 +17,7 @@ from safetensors.torch import load as load_tensors
 from safetensors.torch import save as save_tensors
 
 from retail_forecast.io_utils import canonical_json
+from retail_forecast.neural_runtime import resolve_device, training_time_limit
 from retail_forecast.sequences import SequencePanel, SequencePreprocessor
 
 
@@ -117,7 +118,8 @@ def fit_epochs(
     on_epoch: Callable[[int, bytes], None] | None = None,
 ) -> dict[str, Any]:
     """Restore/check state before optimization; checkpoint only completed epochs."""
-    device = params["device"]
+    device = resolve_device(params["device"])
+    time_limit = training_time_limit(params)
     torch.set_num_threads(params["cpu_threads"])
     if device == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA_UNAVAILABLE: select an available reviewed runtime")
@@ -163,7 +165,7 @@ def fit_epochs(
 
     def check_caps() -> None:
         elapsed, host_peak, gpu_peak = usage()
-        if elapsed > params["training_minutes"] * 60:
+        if time_limit is not None and elapsed > time_limit:
             raise RuntimeError("GRU_TIME_BUDGET_EXCEEDED")
         if host_peak > params["host_memory_gib"] * 2**30:
             raise RuntimeError("GRU_HOST_MEMORY_EXCEEDED")

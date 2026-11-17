@@ -43,8 +43,8 @@ recurrent:
   patience: 5
   learning_rate: 0.001
   gradient_clip: 1.0
-  device: cuda
+  device: auto
   host_memory_gib: 10.0
   gpu_memory_gib: 5.0
-  training_minutes: 90.0
+  training_minutes: null
   cpu_threads: 2

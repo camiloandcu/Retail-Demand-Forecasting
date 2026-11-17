@@ -36,6 +36,7 @@ from retail_forecast.data_contracts import benchmark_labels
 from retail_forecast.features import FeatureSpec
 from retail_forecast.io_utils import read_json
 from retail_forecast.models.base import FitContext
+from retail_forecast.neural_runtime import resolve_device, training_time_limit
 from retail_forecast.provenance import digest_json
 from retail_forecast.run_resume import resume_run
 from retail_forecast.sequences import SequencePreprocessor, request_panel
@@ -45,7 +46,9 @@ from retail_forecast.training import build_training_set
 def _recipe(config: ProjectConfig) -> dict[str, Any]:
     if config.recurrent is None or config.data.availability_policy != "asof_v1":
         raise ValueError("GRU requires an explicit recurrent recipe and asof_v1 policy")
-    return asdict(config.recurrent)
+    params = asdict(config.recurrent)
+    params["device"] = resolve_device(params["device"])
+    return params
 
 
 def _context(run: Any, cutoff: pd.Timestamp, config: ProjectConfig, epochs: int) -> FitContext:
@@ -95,6 +98,7 @@ def _train_one(
     )
 
     params = _recipe(config)
+    time_limit = training_time_limit(params)
     attempt_started = time.monotonic()
     hardware = {
         "device": params["device"],
@@ -324,7 +328,7 @@ def _train_one(
                 used = (
                     earlier_seconds + before_seconds + recovery_overhead + state["training_seconds"]
                 )
-                if used > params["training_minutes"] * 60:
+                if time_limit is not None and used > time_limit:
                     raise RuntimeError("GRU_STUDY_TIME_BUDGET_EXCEEDED")
                 # Linux ru_maxrss is KiB; measured process peak includes panel construction.
                 if (
@@ -359,7 +363,10 @@ def _train_one(
             write_json_artifact(run, f"recurrent/{slot}/{stage}.json", result, kind="selection")
             stages.append(result)
             prior_seconds += result["training_seconds"]
-        if earlier_seconds + prior_seconds + recovery_overhead > params["training_minutes"] * 60:
+        if (
+            time_limit is not None
+            and earlier_seconds + prior_seconds + recovery_overhead > time_limit
+        ):
             raise RuntimeError("GRU_STUDY_TIME_BUDGET_EXCEEDED")
         adapter = GRUAdapter()
         ctx = _context(run, cutoff, config, epochs)

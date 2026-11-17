@@ -16,6 +16,7 @@ from retail_forecast.data import load_frames, validate_dataset, write_synthetic_
 from retail_forecast.data_contracts import benchmark_labels, project_snapshot
 from retail_forecast.io_utils import write_json
 from retail_forecast.metrics import rmsle
+from retail_forecast.neural_runtime import resolve_device, training_time_limit
 from retail_forecast.provenance import digest_json
 from retail_forecast.sequences import SequencePreprocessor, build_panel, request_panel
 from retail_forecast.training import cutoff_training_origins, prepare_feature_frames
@@ -49,8 +50,8 @@ def transfer_recipe(config: ProjectConfig) -> dict[str, Any]:
         "max_epochs": 1 if synthetic else 8,
         "patience": 2,
         "max_training_origins": 3 if synthetic else 8,
-        "training_minutes": 30.0,
-        "device": "cpu" if synthetic else "cuda",
+        "training_minutes": config.recurrent.training_minutes,
+        "device": "cpu" if synthetic else resolve_device(config.recurrent.device),
     }
 
 
@@ -117,8 +118,9 @@ class _Study:
         from retail_forecast.models.gru import initialize
         from retail_forecast.models.gru_training import fit_epochs
 
-        remaining = self.recipe["training_minutes"] * 60 - self.training_seconds
-        if remaining <= 0:
+        time_limit = training_time_limit(self.recipe)
+        remaining = None if time_limit is None else time_limit - self.training_seconds
+        if remaining is not None and remaining <= 0:
             raise RuntimeError("TRANSFER_TOTAL_TRAINING_BUDGET_EXCEEDED")
         model = initialize(pre, self.recipe["hidden_size"], self.config.runtime.seed)
         if encoder is not None:
@@ -129,7 +131,10 @@ class _Study:
                 model,
                 panel,
                 pre,
-                params={**self.recipe, "training_minutes": remaining / 60},
+                params={
+                    **self.recipe,
+                    "training_minutes": None if remaining is None else remaining / 60,
+                },
                 seed=self.config.runtime.seed,
                 epochs=epochs,
                 validation=validation,
@@ -214,12 +219,13 @@ class _Study:
             * len(self.config.validation.origins)
             * 2
         )
+        time_limit = training_time_limit(self.recipe)
         record = {
             "outer_scores_computed": False,
             "internal_scores_computed": False,
             "estimated_training_seconds_with_2x_margin": estimate,
-            "budget_seconds": self.recipe["training_minutes"] * 60,
-            "passed": estimate <= self.recipe["training_minutes"] * 60,
+            "budget_seconds": time_limit,
+            "passed": time_limit is None or estimate <= time_limit,
             "limitation": "First-cutoff epoch timing; not a runtime guarantee.",
         }
         write_json(self.root / "feasibility.json", record)
@@ -302,7 +308,7 @@ def transfer_experiment(config: ProjectConfig) -> dict[str, Any]:
     import torch
 
     if recipe["device"] == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA_UNAVAILABLE: full transfer requires the approved free GPU")
+        raise RuntimeError("CUDA_UNAVAILABLE: the explicitly requested CUDA device is unavailable")
     files = {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()
         for p in sorted(config.paths.raw_data_dir.glob("*.csv"))
