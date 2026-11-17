@@ -17,10 +17,11 @@ notebooks de la rama `academic/submission`.
 El repositorio de esta entrega es
 `https://github.com/camiloandcu/Retail-Demand-Forecasting`. Los notebooks y el código
 compartido se encuentran en este mismo repositorio.
-Cada notebook clona código fijado en `af4d384e8fa47b6034f76aec16e3b598c4fe0d98`.
+Cada notebook clona código fijado en `8353a8d9937e4d8061b026d6885296fcd6b09726`.
 
-1. Para notebooks 04 y 05, selecciona Entorno de ejecución → Cambiar tipo de
-   entorno de ejecución → GPU T4 gratuita. No actives cómputo de pago.
+1. Puedes usar CPU. Para acelerar los notebooks 04 y 05, selecciona Entorno de
+   ejecución → Cambiar tipo de entorno de ejecución → GPU gratuita. El código
+   elige CUDA automáticamente si está disponible. No actives cómputo de pago.
 2. Sube el ZIP a `/content/store-sales-time-series-forecasting.zip`, o coloca sus
    siete CSV en `/content/data/raw`.
 3. Ejecuta todas las celdas en orden. `full` es el modo predeterminado.
@@ -35,8 +36,11 @@ os.environ["RETAIL_FORECAST_MODE"] = "smoke"
 os.environ["RETAIL_FORECAST_POLICY"] = "asof_v1"
 ```
 
-Los notebooks 04 y 05 requieren GPU CUDA para su configuración completa. El 04 ejecuta primero
-una prueba de recursos sin evaluar los horizontes externos. Los datos completos
+Los notebooks 04 y 05 conservan datos, cortes y arquitectura al usar CPU. La
+configuración completa declara `device: auto` y `training_minutes: null`: no se
+interrumpe por minutos, pero mantiene épocas máximas, selección interna y controles
+de memoria. El 04 ejecuta primero una prueba de recursos sin evaluar los horizontes
+externos. Las estimaciones de duración son informativas; CPU puede tardar más. Los datos completos
 requieren acceso a la competencia en Kaggle o el ZIP descrito en la guía de datos.
 No compartas tokens ni los guardes en celdas o salidas.
 

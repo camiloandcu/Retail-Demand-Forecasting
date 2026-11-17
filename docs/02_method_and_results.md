@@ -4,6 +4,12 @@ Se pronostican ventas observadas por tienda y familia durante 16 días. No se
 estiman efectos causales ni ahorros de inventario. La evaluación principal usa
 RMSLE agrupado por observación; los promedios de RMSLE por corte son descriptivos.
 
+La ejecución actual selecciona CUDA o CPU automáticamente. Mantiene los datos,
+cortes, arquitecturas y selección de épocas, sin corte por minutos. Los tiempos
+y métricas registrados abajo corresponden a sus ejecuciones originales; esta
+mejora de compatibilidad no los convierte en resultados nuevos ni garantiza
+igualdad numérica entre dispositivos.
+
 ## Comparación temporal
 
 Los orígenes fijados son 2017-06-28, 2017-07-14 y 2017-07-30, cada uno con los
@@ -80,10 +86,11 @@ adaptación sobre las tiendas destino frente a inicializarlo aleatoriamente?
   ni escaladores. Todas las capas se adaptan; cada grupo ajusta su propio
   preprocesamiento exclusivamente en entrenamiento.
 - Una prueba de una época en origen y destino del primer corte interno mide
-  recursos sin calcular errores externos. Presupuesto total de entrenamiento:
-  1.800 segundos, incluida la prueba. Si la proyección máxima excede ese límite,
-  el experimento se detiene antes de evaluar y requiere registrar una reducción.
-  Nunca se presenta una ejecución interrumpida como resultado completo.
+  recursos sin calcular errores externos. En la ejecución del 15 de noviembre
+  de 2026 se fijó un presupuesto de 1.800 segundos, incluida la prueba, que
+  detenía el experimento si su proyección lo excedía. La configuración actual
+  no impone ese corte: la estimación es informativa y la receta se conserva
+  también en CPU. Una ejecución interrumpida sigue sin ser un resultado completo.
 - Resultado principal: RMSLE agrupado de las mismas claves destino para ambos
   modelos. Se muestran diferencias por corte y horizonte, tiempos y épocas.
   El coste de preentrenamiento se informa aparte; el modelo transferido ve
