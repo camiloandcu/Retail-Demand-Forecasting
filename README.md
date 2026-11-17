@@ -14,16 +14,17 @@ entrenada desde cero y adaptación de un codificador GRU entre grupos de tiendas
 ## Notebooks y Colab
 
 Ejecutar en orden con datos reales (`full`, opción predeterminada). Los enlaces
-abren una revisión inmutable de los notebooks. Los notebooks 04 y 05 requieren
-una GPU gratuita de Colab; los demás pueden ejecutarse en CPU.
+abren una revisión inmutable de los notebooks. Los notebooks 04 y 05 eligen
+GPU CUDA si está disponible o CPU en caso contrario. En CPU pueden tardar más;
+conservan la receta completa y no se detienen por un límite de minutos.
 
 | Orden | Contenido | Abrir en Colab |
 | --- | --- | --- |
-| [01](01_data_audit_eda.ipynb) | Datos, validación y exploración | [Colab 01](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/a880e970b5c8875bac0f71aacdf7807723cea65d/01_data_audit_eda.ipynb) |
-| [02](02_feature_pipeline.ipynb) | Variables y preprocesamiento temporal | [Colab 02](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/a880e970b5c8875bac0f71aacdf7807723cea65d/02_feature_pipeline.ipynb) |
-| [03](03_non_neural_baselines.ipynb) | Comparadores estacionales y LightGBM | [Colab 03](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/a880e970b5c8875bac0f71aacdf7807723cea65d/03_non_neural_baselines.ipynb) |
-| [04](04_recurrent_forecast.ipynb) | Entrenamiento y evaluación de la GRU | [Colab 04](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/a880e970b5c8875bac0f71aacdf7807723cea65d/04_recurrent_forecast.ipynb) |
-| [05](05_transfer_adaptation.ipynb) | Transferencia y adaptación frente a inicialización aleatoria | [Colab 05](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/a880e970b5c8875bac0f71aacdf7807723cea65d/05_transfer_adaptation.ipynb) |
+| [01](01_data_audit_eda.ipynb) | Datos, validación y exploración | [Colab 01](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/01_data_audit_eda.ipynb) |
+| [02](02_feature_pipeline.ipynb) | Variables y preprocesamiento temporal | [Colab 02](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/02_feature_pipeline.ipynb) |
+| [03](03_non_neural_baselines.ipynb) | Comparadores estacionales y LightGBM | [Colab 03](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/03_non_neural_baselines.ipynb) |
+| [04](04_recurrent_forecast.ipynb) | Entrenamiento y evaluación de la GRU | [Colab 04](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/04_recurrent_forecast.ipynb) |
+| [05](05_transfer_adaptation.ipynb) | Transferencia y adaptación frente a inicialización aleatoria | [Colab 05](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/05_transfer_adaptation.ipynb) |
 
 Obtén los siete CSV como indica [la guía de datos](data/README.md). En Colab,
 coloca los archivos en `/content/data/raw`, o el ZIP de la competencia en
@@ -54,10 +55,17 @@ Los cinco notebooks se ejecutaron completos en Colab con una GPU T4 y datos
 reales: 45 celdas, sin errores. El [registro de ejecución](results/colab_execution.json)
 y la [procedencia](results/colab_provenance.json) guardan versiones y tiempos.
 
-La preparación actual también pasó las 45 celdas en modo sintético en un entorno
-nuevo de Colab T4, con instalación repetida y sin reinicios: [comprobación de
+El instalador de Colab, conservado en esta actualización, pasó las 45 celdas
+en modo sintético en un entorno nuevo de Colab T4, con instalación repetida
+y sin reinicios: [comprobación de
 compatibilidad](results/colab_setup_verification.json). Esta prueba no repite las
 métricas reales anteriores.
+
+La selección automática también se comprobó con datos reales en CPU local:
+entrenamiento y evaluación completos de la GRU y la transferencia, sin reducir
+la receta. El [registro de compatibilidad](results/hardware_compatibility.json)
+distingue esta comprobación de las ejecuciones en Colab. Las cifras del informe
+se conservan con su procedencia original.
 
 Más detalle en [método y resultados](docs/02_method_and_results.md),
 [procedencia](docs/03_provenance.md) y [reproducción](docs/01_reproducibility.md).

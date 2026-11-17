@@ -13,7 +13,7 @@ fijado y verifica la instalación; no modifica tu rama de trabajo.
 ## Google Colab
 
 Abre los enlaces de Colab del README: fijan una revisión inmutable de los
-notebooks de la rama `academic/submission`.
+notebooks de esta entrega.
 El repositorio de esta entrega es
 `https://github.com/camiloandcu/Retail-Demand-Forecasting`. Los notebooks y el código
 compartido se encuentran en este mismo repositorio.
@@ -147,3 +147,27 @@ los mismos perfiles y celdas en Colab CPU. La sesión T4 ya contenía las depend
 necesarias; instalar una dependencia ausente se comprueba con pruebas controladas.
 Esta verificación demuestra compatibilidad funcional de la preparación y el
 recorrido sintético, no una repetición de las métricas reales con nuevas versiones.
+
+
+## Selección automática de hardware : 17 de noviembre de 2026
+
+La revisión `8353a8d` se comprobó en una copia inmutable local, con Python 3.13.14
+y PyTorch 2.15.0+cu132. Al ocultar los dispositivos CUDA al proceso, `auto` eligió
+CPU sin simular PyTorch. Se completaron los 3 cortes de entrenamiento, predicción
+y evaluación de la GRU: 85.536 filas, recarga de pesos verificada y snapshots
+consistentes. La transferencia también completó sus 3 cortes, con 28.512 claves
+por modelo. La GRU tardó 499,5 segundos y la transferencia 124,2 segundos en este
+equipo; esos tiempos no estiman la duración de una sesión de Colab.
+
+La selección CUDA se comprobó aparte en una GTX 1650 con un paso de optimizador.
+Esa prueba no es un experimento completo en GPU. Pasaron 47 pruebas locales.
+El instalador de Colab, `pyproject.toml` y `uv.lock` son idénticos a la revisión
+`af4d384` ya comprobada en Colab. No se repitió la ejecución completa en Colab
+para este cambio. Recibo público: `results/hardware_compatibility.json`; recibos
+completos locales: `artifacts/verification/cpu-auto/stable/`.
+
+Un primer intento local entrenó los 3 cortes, pero se detuvo al reunir sus
+predicciones porque cambió la revisión del repositorio durante la ejecución.
+Se conservó como incompleto y se repitió en la copia inmutable sin alterar las
+comprobaciones de identidad. Las métricas del informe conservan sus ejecuciones
+originales; esta prueba de compatibilidad no las reemplaza.
