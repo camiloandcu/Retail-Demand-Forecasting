@@ -82,6 +82,8 @@ def resolved_config(config: ProjectConfig) -> dict[str, Any]:
     result = asdict(config)
     result.pop("project_root")
     result.pop("config_path")
+    if result.get("recurrent") is None:
+        result.pop("recurrent", None)
     paths = {}
     for key, value in result["paths"].items():
         path = Path(value)

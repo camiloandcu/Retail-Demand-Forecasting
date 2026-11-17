@@ -1,4 +1,4 @@
-"""Immutable notebook setup using only the standard library until installation."""
+"""Pinned source setup with locked local and non-disruptive Colab installation."""
 
 from __future__ import annotations
 
@@ -80,8 +80,12 @@ def clear_loaded_bytecode(package: str) -> None:
                 ) from None
 
 
-def selected_profile(root: Path, *, models: bool = False, colab: bool = False) -> Path:
+def selected_profile(
+    root: Path, *, models: bool = False, colab: bool = False, neural: bool = False
+) -> Path:
     """Select the locked profile without Colab's managed notebook packages."""
+    if neural:
+        return root / "constraints" / ("06-colab-neural.txt" if colab else "05-notebook-neural.txt")
     if colab:
         filename = "04-colab-models.txt" if models else "03-colab.txt"
     else:
@@ -89,7 +93,9 @@ def selected_profile(root: Path, *, models: bool = False, colab: bool = False) -
     return root / "constraints" / filename
 
 
-def profile_name(*, models: bool, colab: bool) -> str:
+def profile_name(*, models: bool, colab: bool, neural: bool = False) -> str:
+    if neural:
+        return "colab-neural" if colab else "neural"
     if colab:
         return "colab-models" if models else "colab"
     return "models" if models else "notebook"
@@ -104,14 +110,14 @@ def profile_distributions(profile: Path) -> set[str]:
     }
 
 
-def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
+def install(root: Path, *, models: bool = False, colab: bool = False, neural: bool = False) -> None:
     """Install hashed dependencies into this interpreter, then the pinned project."""
-    profile = selected_profile(root, models=models, colab=colab)
+    profile = selected_profile(root, models=models, colab=colab, neural=neural)
     lock_hash = hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest()
     if f"# uv.lock SHA256: {lock_hash}" not in profile.read_text():
         raise RuntimeError("Constraints do not match uv.lock; regenerate before publishing.")
     profile_hash = hashlib.sha256(profile.read_bytes()).hexdigest()
-    name = profile_name(models=models, colab=colab)
+    name = profile_name(models=models, colab=colab, neural=neural)
     marker = (
         Path(tempfile.gettempdir())
         / f"retail-forecast-{name}-py{sys.version_info.major}{sys.version_info.minor}.json"
@@ -137,7 +143,8 @@ def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
         except (OSError, json.JSONDecodeError):
             receipt = {}
         if (
-            receipt.get("lock_sha256") == lock_hash
+            receipt.get("project_root") == str(root.resolve())
+            and receipt.get("lock_sha256") == lock_hash
             and receipt.get("profile_sha256") == profile_hash
             and receipt.get("python") == list(sys.version_info[:2])
             and receipt.get("freeze_sha256") == freeze_hash()
@@ -155,6 +162,7 @@ def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
                 "Locked installation failed. Check connectivity/runtime; retry setup."
             )
     receipt = {
+        "project_root": str(root.resolve()),
         "lock_sha256": lock_hash,
         "profile_sha256": profile_hash,
         "python": list(sys.version_info[:2]),
@@ -167,13 +175,107 @@ def install(root: Path, *, models: bool = False, colab: bool = False) -> None:
     importlib.invalidate_caches()
 
 
+def installed_versions() -> dict[str, str]:
+    """Snapshot active distribution versions without importing their modules."""
+    names = {
+        re.sub(r"[-_.]+", "-", distribution.metadata["Name"]).lower()
+        for distribution in importlib.metadata.distributions()
+        if distribution.metadata.get("Name")
+    }
+    return {
+        name: importlib.metadata.version(name)
+        for name in sorted(names)
+        if name != "retail-forecast"
+    }
+
+
+def pip_diagnostic(result: subprocess.CompletedProcess) -> str:
+    """Bound resolver diagnostics and redact URLs and credential assignments."""
+    lines = (result.stdout + "\n" + result.stderr).splitlines()
+    detail = "\n".join(lines[-14:])
+    detail = re.sub(r"https?://\S+", "[URL omitted]", detail)
+    detail = re.sub(
+        r"(?i)\b(token|password|api[_-]?key|authorization)(\s*[:=]\s*)\S+",
+        r"\1\2[omitted]",
+        detail,
+    )
+    return detail[-2400:]
+
+
+def install_colab(root: Path, *, models: bool = False, neural: bool = False) -> dict:
+    """Resolve project requirements while protecting every existing distribution.
+
+    Colab owns its running kernel. The universal lock is used locally, not to
+    replace Colab's resident NumPy, plotting, CUDA or notebook dependencies.
+    A constrained dry run must succeed before any installation takes place.
+    """
+    if importlib.util.find_spec("pip") is None:
+        raise RuntimeError("Colab setup requires its bundled pip installation.")
+    before = installed_versions()
+    extras = ["colab"]
+    if models:
+        extras.append("colab-models")
+    if neural:
+        extras.append("neural")
+    command = [sys.executable, "-m", "pip", "install", "--no-build-isolation"]
+    with tempfile.TemporaryDirectory(prefix="retail-colab-setup-") as temporary:
+        folder = Path(temporary)
+        constraints = folder / "resident.txt"
+        constraints.write_text("".join(f"{name}=={v}\n" for name, v in before.items()))
+        report_path = folder / "plan.json"
+        arguments = ["--constraint", str(constraints), "-e", f"{root}[{','.join(extras)}]"]
+        plan = subprocess.run(
+            command + ["--dry-run", "--report", str(report_path)] + arguments,
+            capture_output=True,
+            text=True,
+        )
+        if plan.returncode:
+            raise RuntimeError(
+                "Colab dependencies are incompatible with this runtime. "
+                "No packages were replaced. Resolver diagnostics:\n" + pip_diagnostic(plan)
+            )
+        planned = json.loads(report_path.read_text())
+        replacements = sorted(
+            item["metadata"]["name"]
+            for item in planned.get("install", [])
+            if re.sub(r"[-_.]+", "-", item["metadata"]["name"]).lower() in before
+        )
+        if replacements:
+            raise RuntimeError(f"Colab setup refused to replace resident packages: {replacements}")
+        result = subprocess.run(command + arguments, capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError(
+                "Colab dependency installation failed. Diagnostics:\n" + pip_diagnostic(result)
+            )
+    for directory in site.getsitepackages():
+        site.addsitedir(directory)
+    importlib.invalidate_caches()
+    after = installed_versions()
+    changed = sorted(name for name, version in before.items() if after.get(name) != version)
+    if changed:
+        raise RuntimeError(f"Colab resident packages unexpectedly changed: {changed}")
+    return {
+        "policy": "colab-compatible-preserve-installed",
+        "extras": extras,
+        "preserved_distributions": len(before),
+        "added_distributions": sorted(set(after) - set(before)),
+        "packages": after,
+    }
+
+
 def bootstrap(
-    root: Path, revision: str, origin: str, *, models: bool = False, colab: bool = False
+    root: Path,
+    revision: str,
+    origin: str,
+    *,
+    models: bool = False,
+    colab: bool = False,
+    neural: bool = False,
 ) -> dict:
     """Validate, install and report identities; refuse mixed-source kernel state."""
     root = validate_checkout(root, revision, origin)
     verify_loaded_source(root)
-    selected = selected_profile(root, models=models, colab=colab)
+    selected = selected_profile(root, models=models, colab=colab, neural=neural)
     installable = profile_distributions(selected)
     # Dependencies imported before an upgrade remain resident. Detect disagreement
     # after installation and require restart instead of running mixed versions.
@@ -211,7 +313,13 @@ def bootstrap(
         for name in stale_modules:
             clear_loaded_bytecode(name)
         raise RuntimeError("Loaded dependency versions differ. Restart kernel.")
-    install(root, models=models, colab=colab)
+    colab_installation = None
+    if colab:
+        colab_installation = install_colab(root, models=models, neural=neural)
+    elif neural:
+        install(root, models=models, neural=True)
+    else:
+        install(root, models=models)
     changed_modules = set()
     for distribution, (old, name) in loaded.items():
         if old != importlib.metadata.version(distribution):
@@ -234,7 +342,8 @@ def bootstrap(
         "code_revision": git(root, "rev-parse", "HEAD"),
         "package_source": str(source),
         "lock_sha256": hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest(),
-        "dependency_profile": profile_name(models=models, colab=colab),
+        "dependency_profile": profile_name(models=models, colab=colab, neural=neural),
+        "dependency_lock_applied": not colab,
         "installer": (
             f"pip {importlib.metadata.version('pip')}"
             if importlib.util.find_spec("pip") is not None
@@ -253,6 +362,7 @@ def bootstrap(
         },
     }
     if colab:
+        report["installation"] = colab_installation
         report["colab_platform_packages"] = {
             distribution: {
                 "installed": importlib.metadata.version(distribution),

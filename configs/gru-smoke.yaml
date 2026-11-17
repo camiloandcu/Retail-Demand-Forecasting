@@ -1,0 +1,50 @@
+project:
+  mode: smoke
+paths:
+  raw_data_dir: data/synthetic
+  artifacts_dir: artifacts/gru-smoke
+data:
+  availability_policy: asof_v1
+  source: synthetic
+  expected_stores: 2
+  expected_families: 2
+  fixture_start_date: '2020-01-01'
+  fixture_history_days: 192
+forecast:
+  horizon: 16
+  seasonal_period: 7
+validation:
+  origins:
+  - '2020-05-08'
+  - '2020-05-24'
+  - '2020-06-09'
+baseline:
+  sanity_model: zero
+  seasonal_average_weeks: 4
+  training_origin_stride_days: 16
+  max_training_origins: 3
+  neural_min_relative_improvement: 0.02
+  oof_git_limit_mb: 1
+  tree_model: lightgbm
+  tree_n_estimators: 30
+  tree_learning_rate: 0.05
+  tree_num_leaves: 15
+  tree_min_child_samples: 5
+  tree_feature_fraction: 0.8
+  tree_l2: 1.0
+runtime:
+  seed: 2026
+  log_level: INFO
+recurrent:
+  loss: original_log_mse
+  hidden_size: 8
+  batch_size: 16
+  max_epochs: 3
+  patience: 2
+  learning_rate: 0.001
+  gradient_clip: 1.0
+  device: cpu
+  host_memory_gib: 10.0
+  gpu_memory_gib: 5.0
+  training_minutes: 90.0
+  cpu_threads: 1

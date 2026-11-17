@@ -48,7 +48,7 @@ from retail_forecast.inference import predict_bundle, read_forecast_csv, write_f
 from retail_forecast.io_utils import canonical_json
 from retail_forecast.kaggle_export import export_kaggle_submission
 from retail_forecast.metrics import rmsle
-from retail_forecast.models import SERVING_MODEL_IDS, get_adapter
+from retail_forecast.models import COMPARATOR_MODEL_IDS, SERVING_MODEL_IDS, get_adapter
 from retail_forecast.models.base import FitContext, PredictionContext
 from retail_forecast.models.lightgbm import lightgbm_params
 from retail_forecast.provenance import verify_inputs
@@ -239,9 +239,12 @@ def _fit_bundle(
     }
 
 
-def compare_raw_predictions(left: pd.DataFrame, right: pd.DataFrame) -> dict[str, Any]:
+def compare_raw_predictions(
+    left: pd.DataFrame, right: pd.DataFrame, model_id: str | None = None
+) -> dict[str, Any]:
     """Exact keys first, then the model contract's CPU tree/seasonal tolerance."""
 
+    rtol, atol = (1e-5, 1e-4) if model_id == "gru_global" else (RELOAD_RTOL, RELOAD_ATOL)
     key = ["store_nbr", "family", "target_date"]
     a = left.sort_values(key, kind="mergesort").reset_index(drop=True)
     b = right.sort_values(key, kind="mergesort").reset_index(drop=True)
@@ -254,15 +257,15 @@ def compare_raw_predictions(left: pd.DataFrame, right: pd.DataFrame) -> dict[str
     absolute = np.abs(x - y)
     relative = absolute / np.maximum(np.abs(y), np.finfo(np.float64).tiny)
     return {
-        "passed": bool(np.allclose(x, y, rtol=RELOAD_RTOL, atol=RELOAD_ATOL)),
+        "passed": bool(np.allclose(x, y, rtol=rtol, atol=atol)),
         "keys_equal": True,
         "finite": True,
         "rows": len(x),
-        "rtol": RELOAD_RTOL,
-        "atol": RELOAD_ATOL,
+        "rtol": rtol,
+        "atol": atol,
         "max_abs_diff": float(absolute.max()),
         "max_rel_diff": float(relative.max()),
-        "precision": "float64",
+        "precision": "float32" if model_id == "gru_global" else "float64",
         "device": "cpu",
     }
 
@@ -282,6 +285,10 @@ def train(
             f"MODEL_ID_REQUIRED: use train --model-id one of {', '.join(SERVING_MODEL_IDS)}"
         )
     get_adapter(model_id)
+    if model_id == "gru_global":
+        from retail_forecast.recurrent import train_recurrent
+
+        return train_recurrent(config, origin=origin, run_id=run_id, resume_from=resume_from)
 
     def operation(run: RunContext) -> dict[str, Any]:
         _inputs(run, config)
@@ -592,7 +599,7 @@ def compare(
                     slot=fold.name,
                     cache=cache,
                 )["bundle"]
-                for model_id in SERVING_MODEL_IDS
+                for model_id in COMPARATOR_MODEL_IDS
             }
         summary = validate_dataset(staged)
         write_json_artifact(run, "dataset_summary.json", summary.to_dict(), kind="dataset_summary")
@@ -740,7 +747,7 @@ def compare(
             "snapshot_id": snapshot_id,
             "folds": trained["folds"],
             "lineage": lineage,
-            "complete_lineage_models": list(SERVING_MODEL_IDS),
+            "complete_lineage_models": list(COMPARATOR_MODEL_IDS),
             "research_only_models": [SANITY_MODEL_ID],
             "oof_rows": len(oof),
             "global_rmsle": {

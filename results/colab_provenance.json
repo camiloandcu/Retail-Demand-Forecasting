@@ -1,0 +1,257 @@
+{
+  "status": "completed real-data Colab execution; inherited files preserved separately",
+  "date_utc": "2026-11-15",
+  "code_revision": "4a6748b8143ef09c83d899576f98c9572d934ee1",
+  "notebook_revision": "a2c2303a2583f848631763f599126ee0a92daa97",
+  "verifier_revision": "12d8490",
+  "hardware": "Tesla T4, 15360 MiB",
+  "environment": "Isolated Python 3.13.16 environment on Colab, locked dependency profiles, fresh kernel for each notebook",
+  "files": [
+    {
+      "file": "results/colab_baseline_results.csv",
+      "source_run": "20261115T221836129967Z-cb65161b",
+      "sha256": "516b6d18268a7c14a33a72eda5f6ee8b301440a7f65b02c4c9f57f84e2954dc2"
+    },
+    {
+      "file": "results/colab_recurrent_results.csv",
+      "source_run": "20261115T222601448593Z-e2348e60",
+      "sha256": "c2578c4ca7c375fbbb0cb13d8f86f2d5c158d6bcac8fdf96463c1506c3d9a200"
+    },
+    {
+      "file": "results/transfer_results.csv",
+      "source_run": "20261115T222656070733Z",
+      "sha256": "f980d83f5927b7701bb9816b65dff0429802934547cd3bbb5d37fddbc937759c"
+    },
+    {
+      "file": "results/colab_execution.json",
+      "source_run": "fresh-kernel-verification",
+      "sha256": "f79c268ca8c0ca28e3c217b3b4dc229db80d45f38299424fee916e0cd6088f95"
+    }
+  ],
+  "gru": {
+    "availability_policy": "asof_v1",
+    "empirical_results_are_synthetic": false,
+    "expected_rows": 85536,
+    "folds": [
+      {
+        "horizon": 16,
+        "name": "fold_1",
+        "origin": "2017-06-28",
+        "train_end": "2017-06-28",
+        "train_start": "2013-01-01",
+        "validation_end": "2017-07-14",
+        "validation_start": "2017-06-29"
+      },
+      {
+        "horizon": 16,
+        "name": "fold_2",
+        "origin": "2017-07-14",
+        "train_end": "2017-07-14",
+        "train_start": "2013-01-01",
+        "validation_end": "2017-07-30",
+        "validation_start": "2017-07-15"
+      },
+      {
+        "horizon": 16,
+        "name": "fold_3",
+        "origin": "2017-07-30",
+        "train_end": "2017-07-30",
+        "train_start": "2013-01-01",
+        "validation_end": "2017-08-15",
+        "validation_start": "2017-07-31"
+      }
+    ],
+    "limitations": [
+      "Historical promotion and calendar vintage assumptions",
+      "No calibrated intervals or inventory benefit evidence"
+    ],
+    "mae": 107.5906239354876,
+    "model_id": "gru_global",
+    "oof_rows": 85536,
+    "prediction_run_id": "20261115T222537738487Z-9f2397e3",
+    "primary_training_seconds": 73.39086187800012,
+    "rmsle": 0.46740790727902914,
+    "run_id": "20261115T222601448593Z-e2348e60",
+    "signed_bias": -42.99289975251455,
+    "snapshot_id": "41cb619a08c16be6d3c10495ed0cc8caeb48f6c8dabb71e09a24b73e8ab478ba",
+    "training_runs": [
+      "20261115T222315707566Z-4e739bbf",
+      "20261115T222402697995Z-9b4599c0",
+      "20261115T222441661263Z-a3d1851b"
+    ],
+    "wape": 0.22513081359093717
+  },
+  "transfer": {
+    "run_id": "20261115T222656070733Z",
+    "status": "completed",
+    "source_stores": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36
+    ],
+    "target_stores": [
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54
+    ],
+    "seed": 2026,
+    "recipe": {
+      "batch_size": 256,
+      "cpu_threads": 2,
+      "device": "cuda",
+      "gpu_memory_gib": 5.0,
+      "gradient_clip": 1.0,
+      "hidden_size": 32,
+      "host_memory_gib": 10.0,
+      "learning_rate": 0.001,
+      "loss": "original_log_mse",
+      "max_epochs": 8,
+      "max_training_origins": 8,
+      "patience": 2,
+      "training_minutes": 30.0
+    },
+    "origins": [
+      "2017-06-28",
+      "2017-07-14",
+      "2017-07-30"
+    ],
+    "input_sha256": {
+      "holidays_events.csv": "81a183d6c4d691b57f84a0fde6bbf734a5b3c36a74b97378bf33a592648e2999",
+      "oil.csv": "944b23b857580f9d804399346fd3ed69bffcb7facfd98c55fdb408b8d057cca7",
+      "sample_submission.csv": "17505ec561d9bc64a3c10c3eb00474becf162d9053cebf014a58a6c82ed530c4",
+      "stores.csv": "af503b2bce11d7906d249f81cc0598f10e2addcc9f6c59aa2d95c9f2652c296b",
+      "test.csv": "087ec1ecec76dbba9ea2adb48b8b2fd527c7c59adb82b0dfb9f6f82739400d26",
+      "train.csv": "99a1b7f4241821df10fa71f23abdd71c634f71f901e3cab1400c0f0c583f862c",
+      "transactions.csv": "e116384a6981af74932832436aa2f6a43121f77ca81accc44e3a5160158ca03c"
+    },
+    "training_seconds": 47.16065731199956,
+    "wall_seconds": 76.49048341100001,
+    "selection": [
+      {
+        "fold": 1,
+        "selected_epochs": {
+          "adapted": 8,
+          "scratch": 5
+        }
+      },
+      {
+        "fold": 2,
+        "selected_epochs": {
+          "adapted": 6,
+          "scratch": 8
+        }
+      },
+      {
+        "fold": 3,
+        "selected_epochs": {
+          "adapted": 8,
+          "scratch": 3
+        }
+      }
+    ],
+    "feasibility": {
+      "budget_seconds": 1800.0,
+      "estimated_training_seconds_with_2x_margin": 127.89607799800024,
+      "internal_scores_computed": false,
+      "limitation": "First-cutoff epoch timing; not a runtime guarantee.",
+      "outer_scores_computed": false,
+      "passed": true
+    }
+  },
+  "local_evidence": "artifacts/verification/colab-full/export",
+  "local_archives": [
+    {
+      "file": "artifacts/verification/colab-full/evidence-through-04.zip",
+      "sha256": "26172a4885dc8305d07cc5c6113d36ff966263ac2ec2c64a337f42aeac456aac"
+    },
+    {
+      "file": "artifacts/verification/colab-full/evidence.zip",
+      "sha256": "5501a03cafd8defa31a618048b880489b140a953a4aa48f955ae02c5ef1e2cb6"
+    },
+    {
+      "file": "artifacts/verification/colab-full/evidence-tracking.zip",
+      "sha256": "a9d43e791946bc3b1547aa72bb4af1067b2d1651bf2d201fcd06fe1e347c496e"
+    }
+  ],
+  "editorial_revision": {
+    "description": "Markdown explanations revised after the recorded Colab execution; executable code unchanged. The execution receipt retains its original notebook revision and hashes.",
+    "compared_to_notebook_revision": "a2c2303a2583f848631763f599126ee0a92daa97",
+    "notebooks": [
+      {
+        "notebook": "01_data_audit_eda.ipynb",
+        "code_cells_sha256": "0626e20dd0dcedfdf8d781bd33603540565ddbf5be9056ae6b0d223c57b0b208",
+        "code_unchanged": true
+      },
+      {
+        "notebook": "02_feature_pipeline.ipynb",
+        "code_cells_sha256": "4f69a1d4eace7c3d3d0a08de0518a7c1ecb5401bf6c58dd3e21a258be9f92f7a",
+        "code_unchanged": true
+      },
+      {
+        "notebook": "03_non_neural_baselines.ipynb",
+        "code_cells_sha256": "5a5395e7321bbb19f1e7fe6d2afacac33131827ef47095b5ab269ca6542a8251",
+        "code_unchanged": true
+      },
+      {
+        "notebook": "04_recurrent_forecast.ipynb",
+        "code_cells_sha256": "13888f86a8b765cfabf9bc69d30a00170f4020d332c8630b7ad945d916acfb90",
+        "code_unchanged": true
+      },
+      {
+        "notebook": "05_transfer_adaptation.ipynb",
+        "code_cells_sha256": "2197b2717570a58f4432e0969861e4bafb488fd5b180d5833284522f8585784d",
+        "code_unchanged": true
+      }
+    ]
+  },
+  "verifier_sha256": "237d2f6cca614a44326581dbd6f1ec54fa6d2a35910ac2b0e2eb1a713b171b7d",
+  "verifier_revision_note": "Historical execution revision; the identical verifier source is retained in scripts/verify_notebooks.py."
+}

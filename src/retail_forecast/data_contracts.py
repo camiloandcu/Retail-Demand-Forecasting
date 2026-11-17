@@ -90,6 +90,7 @@ class ForecastRequest:
     stores: pd.DataFrame
     calendar: pd.DataFrame
     competition_oil: pd.DataFrame | None = None
+    history_start: pd.Timestamp | None = None
 
     @property
     def target_dates(self) -> pd.DatetimeIndex:
@@ -216,7 +217,20 @@ def validate_forecast_request(
             raise ForecastRequestError(
                 "HISTORY_AFTER_ORIGIN", name, _safe_key(row, TABLE_KEYS[name])
             )
-    if sales.empty or (origin - sales["date"].min()).days + 1 < min_context_days:
+    history_start = sales["date"].min()
+    if request.history_start is not None:
+        declared = request.history_start
+        if (
+            not isinstance(declared, pd.Timestamp)
+            or declared.tz is not None
+            or pd.isna(declared)
+            or declared != declared.normalize()
+            or declared > origin
+            or (not sales.empty and declared > sales["date"].min())
+        ):
+            raise ForecastRequestError("SCHEMA_INVALID", "history_start")
+        history_start = declared
+    if sales.empty or (origin - history_start).days + 1 < min_context_days:
         raise ForecastRequestError("HISTORY_INSUFFICIENT", "sales_history")
 
     requested = pd.DataFrame(keys, columns=["store_nbr", "family"])
@@ -318,6 +332,7 @@ def project_snapshot(
             calendar["date"].isin(targets), list(TABLE_COLUMNS["calendar"])
         ].reset_index(drop=True),
         competition_oil=oil,
+        history_start=max(start, train["date"].min()),
     )
     validate_forecast_request(request, supported_series=known, min_context_days=min_context_days)
     return request

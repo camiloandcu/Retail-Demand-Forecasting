@@ -1,0 +1,60 @@
+{
+  "notebook_revision": "a2c2303a2583f848631763f599126ee0a92daa97",
+  "mode": "full",
+  "python": "/content/academic-colab-env/bin/python",
+  "driver_python": "3.13.16 (main, Oct  1 2026, 15:40:24) [GCC 13.3.0]",
+  "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+  "colab_release_tag": "release-colab-external-images_20261112-060057_RC00",
+  "notebooks": [
+    {
+      "notebook": "01_data_audit_eda.ipynb",
+      "input_sha256": "1605c957017dc5bb9c232e204d990b76bfad208476dc60fc03e79649971c3ba7",
+      "output_sha256": "1c0a21d4a81270f5894c727404c0d78c89f3ffb7dd15a581b9d70304ee406665",
+      "status": "completed",
+      "cell_errors": 0,
+      "error": null,
+      "executed_code_cells": 14,
+      "wall_seconds": 41.42434285400009
+    },
+    {
+      "notebook": "02_feature_pipeline.ipynb",
+      "input_sha256": "1c6c7b1c193e704d34e41511147cdae4cea23933099e24c54d2cf44eea3b4acb",
+      "output_sha256": "502d96a3ca41a3626f05a9ef8241af2e5764c71018c1bedc21bd409615264382",
+      "status": "completed",
+      "cell_errors": 0,
+      "error": null,
+      "executed_code_cells": 9,
+      "wall_seconds": 45.203857359999915
+    },
+    {
+      "notebook": "03_non_neural_baselines.ipynb",
+      "input_sha256": "25952c0aaa73b4b3ff270e1db1f6e38899a7844db35dbf8959e026da5de535ce",
+      "output_sha256": "5fa3cf65842736c9eafa6c8bbd7bae26e783ed1ee520efc8dd6c1e053da2369f",
+      "status": "completed",
+      "cell_errors": 0,
+      "error": null,
+      "executed_code_cells": 9,
+      "wall_seconds": 240.66467700599992
+    },
+    {
+      "notebook": "04_recurrent_forecast.ipynb",
+      "input_sha256": "4dc9bd3db6c1b8028ede3dbb0365c45d7178e63e350ecd2cac9e3e5132a1b1f0",
+      "output_sha256": "342a562cfc73b8518a194d14516ff14e3f8fd6459838da3e92fd96a47eee015c",
+      "status": "completed",
+      "cell_errors": 0,
+      "error": null,
+      "executed_code_cells": 7,
+      "wall_seconds": 248.26192001699997
+    },
+    {
+      "notebook": "05_transfer_adaptation.ipynb",
+      "input_sha256": "f942523c27b74d48adcb6a73d20a6116d05f16f203b3191ef8ae2d08a0f34272",
+      "output_sha256": "e45e15cdc409b9b2985ec18d46a548c15840b7a0481b36656831b9096e4470b4",
+      "status": "completed",
+      "cell_errors": 0,
+      "error": null,
+      "executed_code_cells": 6,
+      "wall_seconds": 101.14085815900012
+    }
+  ]
+}

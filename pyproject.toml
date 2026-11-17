@@ -15,6 +15,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+neural = [
+  "torch>=2.6,<3",
+  "safetensors>=0.5,<1",
+  "pyarrow>=15,<26",
+]
 dev = [
   "pytest>=8,<9",
   "ruff>=0.9,<1",
@@ -30,8 +35,13 @@ notebook = [
   "wheel>=0.45",
 ]
 colab = [
+  "pytest>=8,<9",
   "kagglehub>=1.0.2,<2",
   "matplotlib>=3.8,<4",
+]
+colab-models = [
+  "lightgbm>=4.6,<5",
+  "pyarrow>=15,<26",
 ]
 models = [
   "lightgbm>=4.6,<5",
@@ -49,7 +59,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
-markers = ["models: requires the optional models extra (real LightGBM)"]
+markers = ["models: requires the optional models extra (real LightGBM)", "neural: requires the optional neural extra (real PyTorch)"]
 
 [tool.ruff]
 line-length = 100

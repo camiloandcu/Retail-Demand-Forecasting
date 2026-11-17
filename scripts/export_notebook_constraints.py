@@ -13,6 +13,8 @@ PROFILES = {
     "02-notebook-models.txt": ("dev", "notebook", "models"),
     "03-colab.txt": ("colab",),
     "04-colab-models.txt": ("colab", "models"),
+    "05-notebook-neural.txt": ("dev", "notebook", "neural"),
+    "06-colab-neural.txt": ("colab", "neural"),
 }
 
 

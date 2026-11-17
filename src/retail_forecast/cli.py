@@ -27,7 +27,17 @@ from retail_forecast.pipeline import (
 )
 from retail_forecast.versions import capture_versions
 
-PRODUCERS = {"train", "evaluate", "predict", "smoke", "baseline", "request", "compare"}
+PRODUCERS = {
+    "train",
+    "evaluate",
+    "predict",
+    "smoke",
+    "baseline",
+    "request",
+    "compare",
+    "recurrent",
+    "recurrent-feasibility",
+}
 COMMANDS = [
     "fixture",
     "validate",
@@ -56,7 +66,7 @@ def _parser() -> argparse.ArgumentParser:
             )
             command.add_argument(
                 "--resume-from",
-                help="Explicit checkpoint source; current adapters reject continuation",
+                help="Explicit epoch checkpoint source; GRU training supports continuation",
             )
         if name == "record-interruption":
             command.add_argument("--run", required=True, help="Abandoned RUNNING run ID")
@@ -135,7 +145,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "capsule_dir": str(args.destination.absolute() / capsule["capsule_id"]),
             }
         else:
+            from retail_forecast.recurrent import recurrent_experiment
+            from retail_forecast.recurrent_feasibility import recurrent_feasibility
+
             functions = {
+                "recurrent": recurrent_experiment,
+                "recurrent-feasibility": recurrent_feasibility,
                 "train": train,
                 "evaluate": evaluate,
                 "predict": predict,
