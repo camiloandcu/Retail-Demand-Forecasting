@@ -32,3 +32,13 @@ Los hashes de los tres archivos de respaldo están en la procedencia nueva. No s
 presentan las tablas importadas como entrenamiento nuevo ni se repite el estudio
 para sustituir una diferencia desfavorable. El video y la aceptación humana siguen
 requiriendo evidencia propia.
+
+
+## Preparación compatible con Colab
+
+La revisión de preparación `af4d384` conserva las distribuciones instaladas en
+Colab y registra las versiones efectivas. No altera las métricas, pesos ni recibos
+de la ejecución completa del 15 de noviembre. Sus salidas conservadas pertenecen
+al entorno fijado original; la nueva preparación no constituye una repetición de
+ese entrenamiento. La comprobación posterior de compatibilidad se documenta en
+la guía de reproducción con su alcance y evidencia propios.

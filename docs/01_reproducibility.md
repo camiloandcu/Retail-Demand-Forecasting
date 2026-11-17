@@ -1,7 +1,8 @@
 # Ejecución reproducible
 
-Se requiere Python 3.10–3.13. Las versiones resueltas están en `uv.lock` y los
-perfiles de instalación con hashes en `constraints/`.
+Se requiere Python 3.10–3.13. La instalación local usa `uv.lock` y los perfiles
+con hashes de `constraints/`. Colab conserva sus bibliotecas compatibles, como
+se explica abajo; su entorno efectivo queda registrado en la salida inicial.
 
 ## Local
 
@@ -11,12 +12,12 @@ fijado y verifica la instalación; no modifica tu rama de trabajo.
 
 ## Google Colab
 
-Abre los enlaces de Colab del README: corresponden a la revisión inmutable
-`a2c2303a2583f848631763f599126ee0a92daa97` de la rama `academic/submission`.
+Abre los enlaces de Colab del README: fijan una revisión inmutable de los
+notebooks de la rama `academic/submission`.
 La URL académica confirmada por el titular es
 `https://github.com/camiloandcu/Retail-Demand-Forecasting`. Esta carpeta local
 no sincroniza ni necesita ejecutar la carpeta del estudio anterior.
-Cada notebook clona código fijado en `4a6748b8143ef09c83d899576f98c9572d934ee1`.
+Cada notebook clona código fijado en `af4d384e8fa47b6034f76aec16e3b598c4fe0d98`.
 
 1. Para notebooks 04 y 05, selecciona Entorno de ejecución → Cambiar tipo de
    entorno de ejecución → GPU T4 gratuita. No actives cómputo de pago.
@@ -40,9 +41,23 @@ una prueba de recursos sin evaluar los horizontes externos. Los datos completos
 necesitan el acceso del titular a Kaggle o el ZIP descrito en la guía de datos.
 No compartas tokens ni los guardes en celdas o salidas.
 
-Una actualización de dependencias ya cargadas puede requerir reiniciar el kernel
-y repetir la celda inicial. Conserva el notebook ejecutado y los resultados antes
-de terminar la sesión. Una ejecución local no demuestra compatibilidad con Colab.
+La primera celda conserva todas las distribuciones ya instaladas en Colab.
+Resuelve las dependencias del proyecto dentro de esos límites y comprueba el plan
+antes de instalar. No reemplaza NumPy, Matplotlib, PyTorch ni las bibliotecas del
+kernel para imponer las versiones del entorno local. El perfil de comparadores
+instala LightGBM y PyArrow sin añadir el sistema opcional de seguimiento MLflow.
+Si hay incompatibilidad, se detiene antes de reemplazar paquetes y muestra un
+diagnóstico; no continúa con versiones mezcladas.
+
+El registro inicial identifica esta política con
+`colab-compatible-preserve-installed`, indica `dependency_lock_applied: false`
+y enumera las versiones efectivas. Repetir esa celda verifica la preparación;
+no vuelve a entrenar. Los resultados completos publicados corresponden al
+entorno fijado de la ejecución original descrita abajo. Una ejecución con otras
+versiones debe conservar su propio registro y puede presentar diferencias
+numéricas. Una sesión que ya mezcló versiones por una instalación anterior
+requiere una sesión nueva; la corrección evita provocar ese estado durante la
+preparación actual.
 
 ## Verificación local de la extracción
 
@@ -121,3 +136,22 @@ los cinco notebooks con salidas; el directorio hermano `artifacts/` conserva
 métricas, predicciones y pesos. Los archivos de respaldo y sus SHA constan en la
 procedencia. Los datos y pesos permanecen excluidos de Git. No se ha verificado
 el video, la revisión humana ni la presentación institucional.
+
+
+## Preparación sin reinicios : 16 de noviembre de 2026
+
+Se verificó la revisión de código `af4d384` en un entorno nuevo de Colab con T4,
+Python 3.13.16 y PyTorch 2.14.1+cu130. Antes de empezar no existían el checkout
+fijado ni el paquete del proyecto. La instalación preservó las 722 distribuciones
+presentes. Los 5 notebooks completaron sus 45 celdas de código en modo sintético,
+en el mismo kernel interactivo, repitiendo además la preparación de cada notebook.
+No hubo errores ni reinicios durante ese recorrido. También se comprobó un paso
+GRU en CUDA sobre la T4; el entrenamiento sintético usa CPU según su receta.
+
+El recibo compacto está en `results/colab_setup_verification.json`. Incluye hashes
+de los notebooks, versiones y alcance. Los recibos completos locales están en
+`artifacts/verification/colab-setup-fix/`. Hubo además una comprobación previa de
+los mismos perfiles y celdas en Colab CPU. La sesión T4 ya contenía las dependencias
+necesarias; instalar una dependencia ausente se comprueba con pruebas controladas.
+Esta verificación demuestra compatibilidad funcional de la preparación y el
+recorrido sintético, no una repetición de las métricas reales con nuevas versiones.
