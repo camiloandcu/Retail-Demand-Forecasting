@@ -1,0 +1,92 @@
+{
+  "verified_at_utc": "2026-11-17T01:20:13.513665+00:00",
+  "source_revision": "af4d384e8fa47b6034f76aec16e3b598c4fe0d98",
+  "mode": "smoke",
+  "data_source": "synthetic",
+  "execution": "Sequential code cells in the actual Colab interactive kernel; same kernel across notebooks",
+  "fresh_runtime": {
+    "gpu": "Tesla T4",
+    "python": "3.13.16 (main, Oct  1 2026, 15:40:24) [GCC 13.3.0]",
+    "release": "release-colab-external-images_20261113-060100_RC00",
+    "pinned_checkout_existed": false,
+    "project_was_importable": false
+  },
+  "dependency_policy": "colab-compatible-preserve-installed",
+  "dependency_lock_applied": false,
+  "kernel_restarts_during_execution": 0,
+  "scientific_packages": {
+    "numpy": "2.4.6",
+    "pandas": "2.2.3",
+    "matplotlib": "3.10.0",
+    "torch": "2.14.1+cu130",
+    "lightgbm": "4.6.0",
+    "safetensors": "0.8.0",
+    "pyarrow": "23.0.1",
+    "kagglehub": "1.0.3"
+  },
+  "cuda_gru_forward_shape": [
+    2,
+    56,
+    4
+  ],
+  "smoke_training_device": "cpu",
+  "notebooks": [
+    {
+      "file": "01_data_audit_eda.ipynb",
+      "input_sha256": "ff450065ca60d8a30beedc322e56e5e36952d02d825dd5c6467dabd567f61fdb",
+      "code_cells_sha256": "1ff65e33e90e8f4b913315711200f188432a44c689c94cea7aa2c63bdc6aff30",
+      "executed_code_cells": 14,
+      "cell_errors": 0,
+      "setup_repeated_without_error": true,
+      "preserved_distributions": 722,
+      "added_distributions": [],
+      "code_cell_seconds_excluding_repeated_setup": 18.306
+    },
+    {
+      "file": "02_feature_pipeline.ipynb",
+      "input_sha256": "748a12cbe339c5247acc003be2c0746e816d6187cb8fca9e720a181324660ae7",
+      "code_cells_sha256": "a0cd04722bbef95901e544b3de228a0479b4371b1907dd28d5a54b2686b800fb",
+      "executed_code_cells": 9,
+      "cell_errors": 0,
+      "setup_repeated_without_error": true,
+      "preserved_distributions": 722,
+      "added_distributions": [],
+      "code_cell_seconds_excluding_repeated_setup": 19.93
+    },
+    {
+      "file": "03_non_neural_baselines.ipynb",
+      "input_sha256": "c757923af5a3c469297b041da25cf4d1c4bf9bf104d556a1abccb169df05ef87",
+      "code_cells_sha256": "64102808235b343dbecad912b745bc77c6fbd5d94335f42a4c575fb702062fdb",
+      "executed_code_cells": 9,
+      "cell_errors": 0,
+      "setup_repeated_without_error": true,
+      "preserved_distributions": 722,
+      "added_distributions": [],
+      "code_cell_seconds_excluding_repeated_setup": 19.442
+    },
+    {
+      "file": "04_recurrent_forecast.ipynb",
+      "input_sha256": "7ad3854ed86bae8eaf709bae6bd3955e945b6639cbd41539f87dd90e8a1abb04",
+      "code_cells_sha256": "12a52b5413930088e1500dfde04f3364edd44c5285badb79ee6572516c0c7324",
+      "executed_code_cells": 7,
+      "cell_errors": 0,
+      "setup_repeated_without_error": true,
+      "preserved_distributions": 722,
+      "added_distributions": [],
+      "code_cell_seconds_excluding_repeated_setup": 25.459
+    },
+    {
+      "file": "05_transfer_adaptation.ipynb",
+      "input_sha256": "61741ad5bc6e480f03158b257eaf61270c6bbf3f6e9bcc95f0ffbed719057239",
+      "code_cells_sha256": "428ae2d5d95426b8bb687f096bb7d43030be31cdf508b081134fc385f453719e",
+      "executed_code_cells": 6,
+      "cell_errors": 0,
+      "setup_repeated_without_error": true,
+      "preserved_distributions": 722,
+      "added_distributions": [],
+      "code_cell_seconds_excluding_repeated_setup": 14.399
+    }
+  ],
+  "scope": "Installation, repeated setup and all notebook code cells with synthetic data; CUDA GRU forward additionally checked. This does not replace the original full-data results or verify their numerical reproduction under these package versions.",
+  "metadata_note": "Installed versions are selected with importlib.metadata.version(name). Colab also exposes older OS distribution metadata for some packages; enumerating distributions into a dict can report those inactive copies. Preservation checks compare active versions before and after installation."
+}

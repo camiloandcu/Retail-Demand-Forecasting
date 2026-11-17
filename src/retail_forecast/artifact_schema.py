@@ -11,6 +11,8 @@ from retail_forecast.availability import POLICIES
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_KINDS = {
+    "recurrent-feasibility": {"experiment_summary", "costs"},
+    "recurrent-study": {"oof", "segmented_metrics", "costs", "selection", "experiment_summary"},
     "training": {"bundle_manifest", "dataset_summary", "verification"},
     "evaluation": {"evaluation"},
     "prediction": {"forecast"},
@@ -39,6 +41,8 @@ REQUIRED_KINDS = {
 # Completed records produced before verified bundles stay verifiable as history.
 # They are never selectable as bundles: loading requires a listed bundle manifest.
 LEGACY_REQUIRED_KINDS = {
+    "recurrent-feasibility": {"experiment_summary", "costs"},
+    "recurrent-study": {"oof", "segmented_metrics", "costs", "selection", "experiment_summary"},
     "training": {"model", "dataset_summary"},
     "prediction": {"submission"},
     "smoke": {"model", "dataset_summary", "evaluation", "submission", "smoke_summary"},

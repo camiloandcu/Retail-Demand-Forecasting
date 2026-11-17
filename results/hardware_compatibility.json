@@ -1,0 +1,84 @@
+{
+  "verified_at": "2026-11-17T16:57:33.646508+00:00",
+  "code_revision": "8353a8d9937e4d8061b026d6885296fcd6b09726",
+  "notebook_revision": "697b2e464aa432001276e8d946a359cd3be63ff0",
+  "scope": "Local real-data training and evaluation of both neural experiments; not a new Colab execution",
+  "cpu_environment": {
+    "python": "3.13.14",
+    "torch": "2.15.0+cu132",
+    "cuda_available": false,
+    "requested_device": "auto",
+    "training_minutes": null
+  },
+  "cpu_visibility": "CUDA_VISIBLE_DEVICES was empty, so auto selected CPU without mocking torch",
+  "data_source": "kaggle",
+  "mode": "full",
+  "availability_policy": "asof_v1",
+  "seed": 2026,
+  "recurrent": {
+    "status": "completed",
+    "folds": [
+      {
+        "run_id": "20261117T164703236688Z-8d1edc19",
+        "selected_epochs": 4,
+        "training_seconds": 139.50800026099978,
+        "reload_parity_passed": true
+      },
+      {
+        "run_id": "20261117T164951167358Z-788627b2",
+        "selected_epochs": 2,
+        "training_seconds": 73.6451237870001,
+        "reload_parity_passed": true
+      },
+      {
+        "run_id": "20261117T165120231474Z-22f9b534",
+        "selected_epochs": 6,
+        "training_seconds": 172.31412285899978,
+        "reload_parity_passed": true
+      }
+    ],
+    "oof_rows": 85536,
+    "wall_seconds": 499.4622533219999,
+    "summary_sha256": "38a1491d7addded587c5aaca57ed3b00c957e2ac94971354936981261791f8a4"
+  },
+  "transfer": {
+    "status": "completed",
+    "rows_per_model": 28512,
+    "wall_seconds": 124.1758480439994,
+    "training_seconds": 103.25701225999728,
+    "manifest_sha256": "d048dcc643232726537f20a45d81af9387cd08302ba3074ae3f4b495a388416d",
+    "timing_probe_has_no_time_cutoff": true
+  },
+  "cuda_check": {
+    "scope": "real CUDA automatic selection and optimizer step, not full notebook execution",
+    "device": "cuda",
+    "device_name": "NVIDIA GeForce GTX 1650",
+    "torch": "2.15.0+cu132",
+    "prediction_shape": [
+      2,
+      16
+    ],
+    "loss": 0.050095461308956146,
+    "passed": true
+  },
+  "tests": {
+    "passed": 47,
+    "warnings": 172,
+    "wall_seconds": 54.54
+  },
+  "historical_report_metrics_replaced": false,
+  "unchanged_from_colab_installer_verification": {
+    "revision": "af4d384e8fa47b6034f76aec16e3b598c4fe0d98",
+    "files": [
+      "src/retail_forecast/notebook_runtime.py",
+      "uv.lock",
+      "pyproject.toml"
+    ]
+  },
+  "prior_incomplete_attempt": "All three folds trained, but a documentation commit changed checkout identity during the run; snapshot protection rejected aggregation. Repeated in an immutable checkout without changing those checks.",
+  "limits": [
+    "Hardware selection does not imply numerical identity between CPU and CUDA",
+    "No new full Colab run was performed for this revision",
+    "CUDA check is one optimizer step, not a complete experiment"
+  ]
+}

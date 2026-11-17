@@ -1,100 +1,82 @@
-# Retail Demand Forecasting
+# Pronóstico de ventas minoristas
 
-A multi-horizon sales forecasting study built around Kaggle's Store Sales dataset.
-It evaluates 16-day forecasts for 1,782 store-family series using rolling-origin
-validation. The intended use is to support retail planning; inventory savings and
-unconstrained demand are not measured by this dataset.
+Entrega de Deep Learning: pronóstico de ventas observadas a 16 días con datos de
+Corporación Favorita. Compara métodos estacionales, LightGBM, una GRU global
+entrenada desde cero y adaptación de un codificador GRU entre grupos de tiendas.
 
-The saved competition benchmark gives LightGBM a pooled OOF RMSLE of **0.3973**,
-compared with **0.4684** for the four-week seasonal average. These results use
-competition-supplied covariates, including future oil values; they do not establish
-operational performance. See the saved results and discussion in
-[Notebook 03](03_non_neural_baselines.ipynb).
+## Para el profesor
 
-Three notebooks and non-neural experiments are implemented. Recurrent training,
-transfer learning, the final academic report/video and the analyst demo remain
-pending. The current CLI training/prediction commands use seasonal naive; they do
-not yet serve the experimental LightGBM model.
+- [Informe inicial intacto](ENTREGA1.PDF).
+- [Informe ejecutivo](INFORME_PROYECTO.PDF): nueve páginas con resumen, iteraciones,
+  resultados reales y cómo obtener los datos.
+- [Video de presentación en YouTube](https://www.youtube.com/watch?v=EwhxnnncJsg).
 
-The repository is intentionally code-first. Notebooks will explain and
-orchestrate the workflow, while metrics, data contracts, feature engineering,
-training, and inference live in the installable `retail_forecast` package.
+## Notebooks y Colab
 
-## Quick start
+Ejecutar en orden con datos reales (`full`, opción predeterminada). Los enlaces
+abren una revisión inmutable de los notebooks. Los notebooks 04 y 05 eligen
+GPU CUDA si está disponible o CPU en caso contrario. En CPU pueden tardar más;
+conservan la receta completa y no se detienen por un límite de minutos.
 
-Python 3.10–3.13 and [uv](https://docs.astral.sh/uv/) are supported.
+| Orden | Contenido | Abrir en Colab |
+| --- | --- | --- |
+| [01](01_data_audit_eda.ipynb) | Datos, validación y exploración | [Colab 01](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/01_data_audit_eda.ipynb) |
+| [02](02_feature_pipeline.ipynb) | Variables y preprocesamiento temporal | [Colab 02](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/02_feature_pipeline.ipynb) |
+| [03](03_non_neural_baselines.ipynb) | Comparadores estacionales y LightGBM | [Colab 03](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/03_non_neural_baselines.ipynb) |
+| [04](04_recurrent_forecast.ipynb) | Entrenamiento y evaluación de la GRU | [Colab 04](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/04_recurrent_forecast.ipynb) |
+| [05](05_transfer_adaptation.ipynb) | Transferencia y adaptación frente a inicialización aleatoria | [Colab 05](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/697b2e464aa432001276e8d946a359cd3be63ff0/05_transfer_adaptation.ipynb) |
+
+Obtén los siete CSV como indica [la guía de datos](data/README.md). En Colab,
+coloca los archivos en `/content/data/raw`, o el ZIP de la competencia en
+`/content/store-sales-time-series-forecasting.zip`. Ejecuta todas las celdas.
+La preparación conserva las bibliotecas compatibles de Colab y registra sus
+versiones; no impone las del entorno local sobre paquetes ya cargados.
+Conserva el notebook con salidas y sus resultados antes de cerrar la sesión.
+Los datos, credenciales y pesos generados permanecen fuera de Git.
+
+Para una prueba sintética, define `RETAIL_FORECAST_MODE=smoke` antes de la
+preparación. Esa opción comprueba funcionamiento y no mide precisión real.
+
+## Resultados principales
+
+| Modelo | RMSLE | WAPE | Sesgo |
+| --- | ---: | ---: | ---: |
+| LightGBM | 0,3987 | 14,0 % | −0,1 % |
+| GRU desde cero | 0,4674 | 22,5 % | −9,0 % |
+| Promedio de las últimas 4 semanas | 0,4684 | 14,8 % | +0,6 % |
+
+Los tres modelos se evaluaron con las mismas 85.536 predicciones (1.782 series,
+16 días y tres cortes de 2017), usando solo información disponible el día de cada
+corte. LightGBM es el mejor. La GRU empata con el promedio de 4 semanas y
+subestima las ventas totales. Con transfer learning entre grupos de tiendas, la
+GRU pasa de 0,4982 a 0,4903 en las 594 series destino (una sola semilla).
+
+Los cinco notebooks se ejecutaron completos en Colab con una GPU T4 y datos
+reales: 45 celdas, sin errores. El [registro de ejecución](results/colab_execution.json)
+y la [procedencia](results/colab_provenance.json) guardan versiones y tiempos.
+
+El instalador de Colab, conservado en esta actualización, pasó las 45 celdas
+en modo sintético en un entorno nuevo de Colab T4, con instalación repetida
+y sin reinicios: [comprobación de
+compatibilidad](results/colab_setup_verification.json). Esta prueba no repite las
+métricas reales anteriores.
+
+La selección automática también se comprobó con datos reales en CPU local:
+entrenamiento y evaluación completos de la GRU y la transferencia, sin reducir
+la receta. El [registro de compatibilidad](results/hardware_compatibility.json)
+distingue esta comprobación de las ejecuciones en Colab. Las cifras del informe
+se conservan con su procedencia original.
+
+Más detalle en [método y resultados](docs/02_method_and_results.md),
+[procedencia](docs/03_provenance.md) y [reproducción](docs/01_reproducibility.md).
+
+## Ejecución local
 
 ```bash
-make install
-make lint
-make test
-make smoke
+uv sync --frozen --extra dev --extra notebook --extra models --extra neural
+uv run --frozen pytest
+uv run --frozen retail-forecast smoke --config configs/smoke.yaml
 ```
 
-`make smoke` creates a tiny deterministic synthetic dataset, evaluates the
-seasonal-naive baseline, publishes and reloads its verified model bundle, and
-writes a keyed submission-shaped file. It does not download Kaggle data and its outputs are not project
-results.
-
-## Real data
-
-Competition data is not distributed with this repository. The notebooks can
-download it using a Kaggle token supplied through the environment or a hidden
-prompt, or extract a ZIP downloaded manually from Kaggle. In every case, the
-validated CSVs are placed in `data/raw/`. See
-[`data/README.md`](data/README.md) for both workflows.
-
-Start with the data audit notebook. It validates the file hashes and schemas,
-then writes a reproducible manifest and EDA summary without changing the raw
-inputs.
-
-[![Open 01 - Data audit and EDA in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/01_data_audit_eda.ipynb)
-
-[![Open 02 - Leakage-safe feature pipeline in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/02_feature_pipeline.ipynb)
-
-[![Open 03 - Non-neural baselines in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/camiloandcu/Retail-Demand-Forecasting/blob/main/03_non_neural_baselines.ipynb)
-
-Run the same baseline workflow from the command line with synthetic fixtures:
-
-```bash
-make baseline CONFIG=configs/smoke.yaml
-```
-
-```bash
-make train MODEL_ID=lightgbm_global
-make evaluate
-make predict BUNDLE=<training-run-id>:models/lightgbm_global/final
-```
-
-Training publishes a verified bundle. Prediction loads only the bundle you name,
-in a fresh process, without refitting or network access. Copy the `bundle` value
-from the training result. Every result has its own verified run directory; see
-[execution records](docs/02_execution_records.md) and
-[model bundles](docs/04_model_bundles.md).
-
-These commands default to `configs/full.yaml`. Override the configuration with
-`CONFIG=configs/smoke.yaml` when needed.
-
-## Repository contract
-
-- Numbered notebooks live in the repository root for the academic
-  submission.
-- Notebooks import `retail_forecast`; they do not reimplement metrics, features,
-  training, or inference.
-- All configs share one validated schema and declare an explicit
-  [availability policy](docs/03_availability_policies.md); results from
-  different policies are never pooled.
-- Generated datasets, models, predictions, MLflow state, checkpoints, and
-  credentials stay outside Git.
-- CI uses only generated synthetic fixtures.
-
-This project is designed to be reproducible, tested, and production-oriented;
-it is not presented as production-ready.
-
-## Documentation
-
-For frozen installation, supported Python versions and immutable notebook setup,
-see the [reproducible setup guide](docs/01_reproducible_setup.md).
-
-See the [documentation index](docs/INDEX.md) for data instructions and the first
-academic report.
+El código compartido reside en `src/retail_forecast`; los notebooks fijan una
+revisión inmutable de este mismo repositorio. No requieren ejecutar otro proyecto.

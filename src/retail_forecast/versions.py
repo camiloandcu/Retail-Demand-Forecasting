@@ -19,6 +19,8 @@ def capture_versions() -> dict[str, Any]:
         "lightgbm",
         "scikit-learn",
         "tensorflow",
+        "torch",
+        "safetensors",
         "mlflow",
     ]
     installed: dict[str, str | None] = {}

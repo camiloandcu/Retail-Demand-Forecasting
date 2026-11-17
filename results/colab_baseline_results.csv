@@ -1,0 +1,453 @@
+availability_policy,model_id,scope,segment,rows,rmsle
+asof_v1,lightgbm_global,family,AUTOMOTIVE,2592,0.49964255476750763
+asof_v1,lightgbm_global,family,BABY CARE,2592,0.28648344950269383
+asof_v1,lightgbm_global,family,BEAUTY,2592,0.46732285157270737
+asof_v1,lightgbm_global,family,BEVERAGES,2592,0.20740678278120991
+asof_v1,lightgbm_global,family,BOOKS,2592,0.10853343061684695
+asof_v1,lightgbm_global,family,BREAD/BAKERY,2592,0.18078112122675208
+asof_v1,lightgbm_global,family,CELEBRATION,2592,0.5436632170554704
+asof_v1,lightgbm_global,family,CLEANING,2592,0.3084902639638527
+asof_v1,lightgbm_global,family,DAIRY,2592,0.16310643803917244
+asof_v1,lightgbm_global,family,DELI,2592,0.18692789637556467
+asof_v1,lightgbm_global,family,EGGS,2592,0.31351077431388463
+asof_v1,lightgbm_global,family,FROZEN FOODS,2592,0.28402728401229177
+asof_v1,lightgbm_global,family,GROCERY I,2592,0.15371720120846388
+asof_v1,lightgbm_global,family,GROCERY II,2592,0.6614377089837512
+asof_v1,lightgbm_global,family,HARDWARE,2592,0.5267541845326399
+asof_v1,lightgbm_global,family,HOME AND KITCHEN I,2592,0.46325156114067356
+asof_v1,lightgbm_global,family,HOME AND KITCHEN II,2592,0.4344861077201975
+asof_v1,lightgbm_global,family,HOME APPLIANCES,2592,0.37561323708111016
+asof_v1,lightgbm_global,family,HOME CARE,2592,0.2181498696242101
+asof_v1,lightgbm_global,family,LADIESWEAR,2592,0.4905339823174602
+asof_v1,lightgbm_global,family,LAWN AND GARDEN,2592,0.40032424773811043
+asof_v1,lightgbm_global,family,LINGERIE,2592,0.6173323771270081
+asof_v1,lightgbm_global,family,"LIQUOR,WINE,BEER",2592,0.4852239980091348
+asof_v1,lightgbm_global,family,MAGAZINES,2592,0.5141594853793218
+asof_v1,lightgbm_global,family,MEATS,2592,0.23006136427332108
+asof_v1,lightgbm_global,family,PERSONAL CARE,2592,0.2249872178878957
+asof_v1,lightgbm_global,family,PET SUPPLIES,2592,0.46960242151591314
+asof_v1,lightgbm_global,family,PLAYERS AND ELECTRONICS,2592,0.4612731313694718
+asof_v1,lightgbm_global,family,POULTRY,2592,0.2346076500588396
+asof_v1,lightgbm_global,family,PREPARED FOODS,2592,0.2747715851785331
+asof_v1,lightgbm_global,family,PRODUCE,2592,0.1721699999777495
+asof_v1,lightgbm_global,family,SCHOOL AND OFFICE SUPPLIES,2592,0.6589597393598834
+asof_v1,lightgbm_global,family,SEAFOOD,2592,0.4823702681033485
+asof_v1,seasonal_average_4w,family,AUTOMOTIVE,2592,0.5619470670716826
+asof_v1,seasonal_average_4w,family,BABY CARE,2592,0.33483963600600086
+asof_v1,seasonal_average_4w,family,BEAUTY,2592,0.5568410243638743
+asof_v1,seasonal_average_4w,family,BEVERAGES,2592,0.2298533664975032
+asof_v1,seasonal_average_4w,family,BOOKS,2592,0.13262129683620397
+asof_v1,seasonal_average_4w,family,BREAD/BAKERY,2592,0.17244240748961337
+asof_v1,seasonal_average_4w,family,CELEBRATION,2592,0.5885254185068507
+asof_v1,seasonal_average_4w,family,CLEANING,2592,0.3614837965973415
+asof_v1,seasonal_average_4w,family,DAIRY,2592,0.15652601467143548
+asof_v1,seasonal_average_4w,family,DELI,2592,0.18831639571691147
+asof_v1,seasonal_average_4w,family,EGGS,2592,0.32148655419909056
+asof_v1,seasonal_average_4w,family,FROZEN FOODS,2592,0.2956888768266912
+asof_v1,seasonal_average_4w,family,GROCERY I,2592,0.17315855223347157
+asof_v1,seasonal_average_4w,family,GROCERY II,2592,0.6555658408378799
+asof_v1,seasonal_average_4w,family,HARDWARE,2592,0.5969589265853533
+asof_v1,seasonal_average_4w,family,HOME AND KITCHEN I,2592,0.5418159746970138
+asof_v1,seasonal_average_4w,family,HOME AND KITCHEN II,2592,0.49667804038886587
+asof_v1,seasonal_average_4w,family,HOME APPLIANCES,2592,0.46980368948451956
+asof_v1,seasonal_average_4w,family,HOME CARE,2592,0.25200345951182773
+asof_v1,seasonal_average_4w,family,LADIESWEAR,2592,0.5282143302238278
+asof_v1,seasonal_average_4w,family,LAWN AND GARDEN,2592,0.44246969844851775
+asof_v1,seasonal_average_4w,family,LINGERIE,2592,0.702354398854508
+asof_v1,seasonal_average_4w,family,"LIQUOR,WINE,BEER",2592,0.5393613851044758
+asof_v1,seasonal_average_4w,family,MAGAZINES,2592,0.5681923085915033
+asof_v1,seasonal_average_4w,family,MEATS,2592,0.19890950940246044
+asof_v1,seasonal_average_4w,family,PERSONAL CARE,2592,0.2696930579287506
+asof_v1,seasonal_average_4w,family,PET SUPPLIES,2592,0.5230179507605363
+asof_v1,seasonal_average_4w,family,PLAYERS AND ELECTRONICS,2592,0.5168380827298983
+asof_v1,seasonal_average_4w,family,POULTRY,2592,0.2058101403041474
+asof_v1,seasonal_average_4w,family,PREPARED FOODS,2592,0.2885258069919009
+asof_v1,seasonal_average_4w,family,PRODUCE,2592,0.14396308539764477
+asof_v1,seasonal_average_4w,family,SCHOOL AND OFFICE SUPPLIES,2592,1.1628825817350714
+asof_v1,seasonal_average_4w,family,SEAFOOD,2592,0.5487732809946346
+asof_v1,seasonal_naive_7d,family,AUTOMOTIVE,2592,0.6992417337602306
+asof_v1,seasonal_naive_7d,family,BABY CARE,2592,0.38488070884742565
+asof_v1,seasonal_naive_7d,family,BEAUTY,2592,0.6698544435154843
+asof_v1,seasonal_naive_7d,family,BEVERAGES,2592,0.26879992329662733
+asof_v1,seasonal_naive_7d,family,BOOKS,2592,0.14145606457059914
+asof_v1,seasonal_naive_7d,family,BREAD/BAKERY,2592,0.19562895586539403
+asof_v1,seasonal_naive_7d,family,CELEBRATION,2592,0.7161984519847757
+asof_v1,seasonal_naive_7d,family,CLEANING,2592,0.4655418285845014
+asof_v1,seasonal_naive_7d,family,DAIRY,2592,0.17264181320470806
+asof_v1,seasonal_naive_7d,family,DELI,2592,0.22954433356037365
+asof_v1,seasonal_naive_7d,family,EGGS,2592,0.3911559908709679
+asof_v1,seasonal_naive_7d,family,FROZEN FOODS,2592,0.36395707387895226
+asof_v1,seasonal_naive_7d,family,GROCERY I,2592,0.20254700774366977
+asof_v1,seasonal_naive_7d,family,GROCERY II,2592,0.800409168254318
+asof_v1,seasonal_naive_7d,family,HARDWARE,2592,0.7250255944383678
+asof_v1,seasonal_naive_7d,family,HOME AND KITCHEN I,2592,0.6268855696739352
+asof_v1,seasonal_naive_7d,family,HOME AND KITCHEN II,2592,0.6002132573856954
+asof_v1,seasonal_naive_7d,family,HOME APPLIANCES,2592,0.5279056363014709
+asof_v1,seasonal_naive_7d,family,HOME CARE,2592,0.2883321000292709
+asof_v1,seasonal_naive_7d,family,LADIESWEAR,2592,0.6243126890184433
+asof_v1,seasonal_naive_7d,family,LAWN AND GARDEN,2592,0.54174126731096
+asof_v1,seasonal_naive_7d,family,LINGERIE,2592,0.9103105149743843
+asof_v1,seasonal_naive_7d,family,"LIQUOR,WINE,BEER",2592,0.6300138464683891
+asof_v1,seasonal_naive_7d,family,MAGAZINES,2592,0.6900092893008958
+asof_v1,seasonal_naive_7d,family,MEATS,2592,0.23725831120663035
+asof_v1,seasonal_naive_7d,family,PERSONAL CARE,2592,0.3206596571708172
+asof_v1,seasonal_naive_7d,family,PET SUPPLIES,2592,0.6520306571727648
+asof_v1,seasonal_naive_7d,family,PLAYERS AND ELECTRONICS,2592,0.6407260529893364
+asof_v1,seasonal_naive_7d,family,POULTRY,2592,0.25813971653391293
+asof_v1,seasonal_naive_7d,family,PREPARED FOODS,2592,0.3490976317177959
+asof_v1,seasonal_naive_7d,family,PRODUCE,2592,0.16748777547336802
+asof_v1,seasonal_naive_7d,family,SCHOOL AND OFFICE SUPPLIES,2592,1.1959573655584983
+asof_v1,seasonal_naive_7d,family,SEAFOOD,2592,0.6783670350616628
+asof_v1,zero,family,AUTOMOTIVE,2592,2.01585524210074
+asof_v1,zero,family,BABY CARE,2592,0.33471821739906343
+asof_v1,zero,family,BEAUTY,2592,1.8102556001056331
+asof_v1,zero,family,BEVERAGES,2592,8.015679359145004
+asof_v1,zero,family,BOOKS,2592,0.10641855775957343
+asof_v1,zero,family,BREAD/BAKERY,2592,6.108096091795863
+asof_v1,zero,family,CELEBRATION,2592,2.494029170279589
+asof_v1,zero,family,CLEANING,2592,7.034733207120976
+asof_v1,zero,family,DAIRY,2592,6.573883616893116
+asof_v1,zero,family,DELI,2592,5.610668448422952
+asof_v1,zero,family,EGGS,2592,5.071567147741927
+asof_v1,zero,family,FROZEN FOODS,2592,4.6406926656486425
+asof_v1,zero,family,GROCERY I,2592,8.310170067640039
+asof_v1,zero,family,GROCERY II,2592,3.1955027151442503
+asof_v1,zero,family,HARDWARE,2592,0.9417174428401932
+asof_v1,zero,family,HOME AND KITCHEN I,2592,3.301695571717622
+asof_v1,zero,family,HOME AND KITCHEN II,2592,3.2360217681497843
+asof_v1,zero,family,HOME APPLIANCES,2592,0.42738938709940755
+asof_v1,zero,family,HOME CARE,2592,5.618803113739174
+asof_v1,zero,family,LADIESWEAR,2592,2.2087119922139715
+asof_v1,zero,family,LAWN AND GARDEN,2592,2.483677771941399
+asof_v1,zero,family,LINGERIE,2592,1.9263650941096762
+asof_v1,zero,family,"LIQUOR,WINE,BEER",2592,4.247889606203443
+asof_v1,zero,family,MAGAZINES,2592,1.8308196809473825
+asof_v1,zero,family,MEATS,2592,5.682136055610839
+asof_v1,zero,family,PERSONAL CARE,2592,5.600133784546015
+asof_v1,zero,family,PET SUPPLIES,2592,2.0608192157377356
+asof_v1,zero,family,PLAYERS AND ELECTRONICS,2592,2.3438832252927964
+asof_v1,zero,family,POULTRY,2592,5.654917176301975
+asof_v1,zero,family,PREPARED FOODS,2592,4.290385616481011
+asof_v1,zero,family,PRODUCE,2592,7.394396715403365
+asof_v1,zero,family,SCHOOL AND OFFICE SUPPLIES,2592,1.706723084594104
+asof_v1,zero,family,SEAFOOD,2592,2.6675247557225936
+asof_v1,lightgbm_global,fold,fold_1,28512,0.37894510675832016
+asof_v1,lightgbm_global,fold,fold_2,28512,0.4001610422387368
+asof_v1,lightgbm_global,fold,fold_3,28512,0.4160630642242697
+asof_v1,seasonal_average_4w,fold,fold_1,28512,0.42451530195097453
+asof_v1,seasonal_average_4w,fold,fold_2,28512,0.4426829234092229
+asof_v1,seasonal_average_4w,fold,fold_3,28512,0.531130405730008
+asof_v1,seasonal_naive_7d,fold,fold_1,28512,0.5176185596076112
+asof_v1,seasonal_naive_7d,fold,fold_2,28512,0.5211689523141964
+asof_v1,seasonal_naive_7d,fold,fold_3,28512,0.6170404161294091
+asof_v1,zero,fold,fold_1,28512,4.420193574008207
+asof_v1,zero,fold,fold_2,28512,4.4192886285496815
+asof_v1,zero,fold,fold_3,28512,4.419499687191416
+asof_v1,lightgbm_global,global,all,85536,0.3986797909238923
+asof_v1,seasonal_average_4w,global,all,85536,0.468430329276968
+asof_v1,seasonal_naive_7d,global,all,85536,0.5538606699774742
+asof_v1,zero,global,all,85536,4.419660646822597
+asof_v1,lightgbm_global,horizon,1,5346,0.37897474175253987
+asof_v1,lightgbm_global,horizon,10,5346,0.38952640614798517
+asof_v1,lightgbm_global,horizon,11,5346,0.40169949099823127
+asof_v1,lightgbm_global,horizon,12,5346,0.41192120972182206
+asof_v1,lightgbm_global,horizon,13,5346,0.4230536869750669
+asof_v1,lightgbm_global,horizon,14,5346,0.4209998033405209
+asof_v1,lightgbm_global,horizon,15,5346,0.41773243231538865
+asof_v1,lightgbm_global,horizon,16,5346,0.417609563951105
+asof_v1,lightgbm_global,horizon,2,5346,0.37573426080836275
+asof_v1,lightgbm_global,horizon,3,5346,0.37417298353666245
+asof_v1,lightgbm_global,horizon,4,5346,0.3860054827630283
+asof_v1,lightgbm_global,horizon,5,5346,0.39422106071136787
+asof_v1,lightgbm_global,horizon,6,5346,0.389614581786507
+asof_v1,lightgbm_global,horizon,7,5346,0.39550839966710316
+asof_v1,lightgbm_global,horizon,8,5346,0.39592524376726457
+asof_v1,lightgbm_global,horizon,9,5346,0.40130565984665173
+asof_v1,seasonal_average_4w,horizon,1,5346,0.44337336329051497
+asof_v1,seasonal_average_4w,horizon,10,5346,0.45822687896632025
+asof_v1,seasonal_average_4w,horizon,11,5346,0.4695818144530518
+asof_v1,seasonal_average_4w,horizon,12,5346,0.49567347418176766
+asof_v1,seasonal_average_4w,horizon,13,5346,0.4834088712722441
+asof_v1,seasonal_average_4w,horizon,14,5346,0.4735750033251916
+asof_v1,seasonal_average_4w,horizon,15,5346,0.5050915622619134
+asof_v1,seasonal_average_4w,horizon,16,5346,0.4997478180460568
+asof_v1,seasonal_average_4w,horizon,2,5346,0.4514055197284962
+asof_v1,seasonal_average_4w,horizon,3,5346,0.4560592588978027
+asof_v1,seasonal_average_4w,horizon,4,5346,0.45398929308822566
+asof_v1,seasonal_average_4w,horizon,5,5346,0.4635588661009509
+asof_v1,seasonal_average_4w,horizon,6,5346,0.44511746125842666
+asof_v1,seasonal_average_4w,horizon,7,5346,0.44083633435673253
+asof_v1,seasonal_average_4w,horizon,8,5346,0.4754789545499379
+asof_v1,seasonal_average_4w,horizon,9,5346,0.47324533240876115
+asof_v1,seasonal_naive_7d,horizon,1,5346,0.5303168124361999
+asof_v1,seasonal_naive_7d,horizon,10,5346,0.5525091369571129
+asof_v1,seasonal_naive_7d,horizon,11,5346,0.5488480590936577
+asof_v1,seasonal_naive_7d,horizon,12,5346,0.5793357524230711
+asof_v1,seasonal_naive_7d,horizon,13,5346,0.565377221198603
+asof_v1,seasonal_naive_7d,horizon,14,5346,0.5575238134368897
+asof_v1,seasonal_naive_7d,horizon,15,5346,0.576910566403935
+asof_v1,seasonal_naive_7d,horizon,16,5346,0.5864456118224635
+asof_v1,seasonal_naive_7d,horizon,2,5346,0.5440368213197442
+asof_v1,seasonal_naive_7d,horizon,3,5346,0.5534002685858797
+asof_v1,seasonal_naive_7d,horizon,4,5346,0.5421719392707152
+asof_v1,seasonal_naive_7d,horizon,5,5346,0.5479848421773429
+asof_v1,seasonal_naive_7d,horizon,6,5346,0.5367615660101784
+asof_v1,seasonal_naive_7d,horizon,7,5346,0.5258924517621386
+asof_v1,seasonal_naive_7d,horizon,8,5346,0.55384716200771
+asof_v1,seasonal_naive_7d,horizon,9,5346,0.5565098240741863
+asof_v1,zero,horizon,1,5346,4.403491838302066
+asof_v1,zero,horizon,10,5346,4.42679379090728
+asof_v1,zero,horizon,11,5346,4.391391310611873
+asof_v1,zero,horizon,12,5346,4.372477875234707
+asof_v1,zero,horizon,13,5346,4.3270380068852825
+asof_v1,zero,horizon,14,5346,4.387532289923095
+asof_v1,zero,horizon,15,5346,4.392759632065794
+asof_v1,zero,horizon,16,5346,4.442126237414762
+asof_v1,zero,horizon,2,5346,4.50465977007826
+asof_v1,zero,horizon,3,5346,4.526563286294052
+asof_v1,zero,horizon,4,5346,4.44990008850028
+asof_v1,zero,horizon,5,5346,4.39800240023015
+asof_v1,zero,horizon,6,5346,4.416225131694425
+asof_v1,zero,horizon,7,5346,4.444715645723104
+asof_v1,zero,horizon,8,5346,4.4047292396915525
+asof_v1,zero,horizon,9,5346,4.42219487110655
+asof_v1,lightgbm_global,promotion,not_promoted,48752,0.4443959253857909
+asof_v1,lightgbm_global,promotion,promoted,36784,0.32842560656921016
+asof_v1,seasonal_average_4w,promotion,not_promoted,48752,0.4924167071981931
+asof_v1,seasonal_average_4w,promotion,promoted,36784,0.4346045439919794
+asof_v1,seasonal_naive_7d,promotion,not_promoted,48752,0.5940033285120935
+asof_v1,seasonal_naive_7d,promotion,promoted,36784,0.4956726161073207
+asof_v1,zero,promotion,not_promoted,48752,2.8376338681086706
+asof_v1,zero,promotion,promoted,36784,5.894926266929138
+asof_v1,lightgbm_global,store,1,1584,0.381785514928514
+asof_v1,lightgbm_global,store,10,1584,0.42686023334503986
+asof_v1,lightgbm_global,store,11,1584,0.4106085120101907
+asof_v1,lightgbm_global,store,12,1584,0.4022050631676337
+asof_v1,lightgbm_global,store,13,1584,0.41444480209641216
+asof_v1,lightgbm_global,store,14,1584,0.464543023267637
+asof_v1,lightgbm_global,store,15,1584,0.4165598203716758
+asof_v1,lightgbm_global,store,16,1584,0.4153885296468845
+asof_v1,lightgbm_global,store,17,1584,0.39048954068329
+asof_v1,lightgbm_global,store,18,1584,0.41747169149132735
+asof_v1,lightgbm_global,store,19,1584,0.5016210085401207
+asof_v1,lightgbm_global,store,2,1584,0.34239162539415646
+asof_v1,lightgbm_global,store,20,1584,0.41830057531089043
+asof_v1,lightgbm_global,store,21,1584,0.41561705640035873
+asof_v1,lightgbm_global,store,22,1584,0.45697178831490753
+asof_v1,lightgbm_global,store,23,1584,0.3881904152051735
+asof_v1,lightgbm_global,store,24,1584,0.33092583476720594
+asof_v1,lightgbm_global,store,25,1584,0.42406306462445487
+asof_v1,lightgbm_global,store,26,1584,0.46801910955899745
+asof_v1,lightgbm_global,store,27,1584,0.37652880876411166
+asof_v1,lightgbm_global,store,28,1584,0.4234027989647684
+asof_v1,lightgbm_global,store,29,1584,0.3935267047857613
+asof_v1,lightgbm_global,store,3,1584,0.30965466430435895
+asof_v1,lightgbm_global,store,30,1584,0.4374395993150554
+asof_v1,lightgbm_global,store,31,1584,0.3983067330240767
+asof_v1,lightgbm_global,store,32,1584,0.4366786537991697
+asof_v1,lightgbm_global,store,33,1584,0.40364269502443756
+asof_v1,lightgbm_global,store,34,1584,0.42332153134645273
+asof_v1,lightgbm_global,store,35,1584,0.43869482931266507
+asof_v1,lightgbm_global,store,36,1584,0.4354224548458263
+asof_v1,lightgbm_global,store,37,1584,0.3517269281426461
+asof_v1,lightgbm_global,store,38,1584,0.3817396383477175
+asof_v1,lightgbm_global,store,39,1584,0.3931407705727709
+asof_v1,lightgbm_global,store,4,1584,0.3353597721650356
+asof_v1,lightgbm_global,store,40,1584,0.41336038900255323
+asof_v1,lightgbm_global,store,41,1584,0.38629698838685633
+asof_v1,lightgbm_global,store,42,1584,0.35305919937473657
+asof_v1,lightgbm_global,store,43,1584,0.41387751082724805
+asof_v1,lightgbm_global,store,44,1584,0.39402037630516706
+asof_v1,lightgbm_global,store,45,1584,0.40587622095078973
+asof_v1,lightgbm_global,store,46,1584,0.3244260630997324
+asof_v1,lightgbm_global,store,47,1584,0.42023000875574873
+asof_v1,lightgbm_global,store,48,1584,0.41567576809018
+asof_v1,lightgbm_global,store,49,1584,0.34305972452234623
+asof_v1,lightgbm_global,store,5,1584,0.38823696728985474
+asof_v1,lightgbm_global,store,50,1584,0.44939542174464925
+asof_v1,lightgbm_global,store,51,1584,0.3669482586208265
+asof_v1,lightgbm_global,store,52,1584,0.34889986820334545
+asof_v1,lightgbm_global,store,53,1584,0.38879744139667627
+asof_v1,lightgbm_global,store,54,1584,0.4217128115757729
+asof_v1,lightgbm_global,store,6,1584,0.31929317389499856
+asof_v1,lightgbm_global,store,7,1584,0.33543321794721204
+asof_v1,lightgbm_global,store,8,1584,0.3120822861744114
+asof_v1,lightgbm_global,store,9,1584,0.38530419622391626
+asof_v1,seasonal_average_4w,store,1,1584,0.4126350618549182
+asof_v1,seasonal_average_4w,store,10,1584,0.4926955573634435
+asof_v1,seasonal_average_4w,store,11,1584,0.4824079255142139
+asof_v1,seasonal_average_4w,store,12,1584,0.48385797920027096
+asof_v1,seasonal_average_4w,store,13,1584,0.4879982170048337
+asof_v1,seasonal_average_4w,store,14,1584,0.5074532881411697
+asof_v1,seasonal_average_4w,store,15,1584,0.47940781331087395
+asof_v1,seasonal_average_4w,store,16,1584,0.5152321383569487
+asof_v1,seasonal_average_4w,store,17,1584,0.4576451002393864
+asof_v1,seasonal_average_4w,store,18,1584,0.5248144522224119
+asof_v1,seasonal_average_4w,store,19,1584,0.524722173236292
+asof_v1,seasonal_average_4w,store,2,1584,0.3883219970140437
+asof_v1,seasonal_average_4w,store,20,1584,0.5614302210265526
+asof_v1,seasonal_average_4w,store,21,1584,0.47522335271242966
+asof_v1,seasonal_average_4w,store,22,1584,0.5349729155591278
+asof_v1,seasonal_average_4w,store,23,1584,0.43268177318976514
+asof_v1,seasonal_average_4w,store,24,1584,0.3599200667204109
+asof_v1,seasonal_average_4w,store,25,1584,0.45322225622181456
+asof_v1,seasonal_average_4w,store,26,1584,0.5180343720965286
+asof_v1,seasonal_average_4w,store,27,1584,0.4053157232323413
+asof_v1,seasonal_average_4w,store,28,1584,0.461090084678256
+asof_v1,seasonal_average_4w,store,29,1584,0.4376084123711393
+asof_v1,seasonal_average_4w,store,3,1584,0.3382440131662487
+asof_v1,seasonal_average_4w,store,30,1584,0.5039215047548651
+asof_v1,seasonal_average_4w,store,31,1584,0.4506747365624776
+asof_v1,seasonal_average_4w,store,32,1584,0.4902685717131964
+asof_v1,seasonal_average_4w,store,33,1584,0.4598239966583932
+asof_v1,seasonal_average_4w,store,34,1584,0.4566298367511986
+asof_v1,seasonal_average_4w,store,35,1584,0.4827602042431673
+asof_v1,seasonal_average_4w,store,36,1584,0.48087973883515234
+asof_v1,seasonal_average_4w,store,37,1584,0.3848250637955922
+asof_v1,seasonal_average_4w,store,38,1584,0.4291830344643007
+asof_v1,seasonal_average_4w,store,39,1584,0.45611420416485093
+asof_v1,seasonal_average_4w,store,4,1584,0.37797395937076933
+asof_v1,seasonal_average_4w,store,40,1584,0.4501245702684923
+asof_v1,seasonal_average_4w,store,41,1584,0.415366986365799
+asof_v1,seasonal_average_4w,store,42,1584,0.38730677429384663
+asof_v1,seasonal_average_4w,store,43,1584,0.4549340130138685
+asof_v1,seasonal_average_4w,store,44,1584,0.5362724497777193
+asof_v1,seasonal_average_4w,store,45,1584,0.49527450560951786
+asof_v1,seasonal_average_4w,store,46,1584,0.5270819526013643
+asof_v1,seasonal_average_4w,store,47,1584,0.6023992840515718
+asof_v1,seasonal_average_4w,store,48,1584,0.5873053897951542
+asof_v1,seasonal_average_4w,store,49,1584,0.5445494924162154
+asof_v1,seasonal_average_4w,store,5,1584,0.42631294453721236
+asof_v1,seasonal_average_4w,store,50,1584,0.6323123131939181
+asof_v1,seasonal_average_4w,store,51,1584,0.4154248319952616
+asof_v1,seasonal_average_4w,store,52,1584,0.36018869074845583
+asof_v1,seasonal_average_4w,store,53,1584,0.4144538819318995
+asof_v1,seasonal_average_4w,store,54,1584,0.45028737078140446
+asof_v1,seasonal_average_4w,store,6,1584,0.35616071502517077
+asof_v1,seasonal_average_4w,store,7,1584,0.3811038124969696
+asof_v1,seasonal_average_4w,store,8,1584,0.3505894581545198
+asof_v1,seasonal_average_4w,store,9,1584,0.5488895978562258
+asof_v1,seasonal_naive_7d,store,1,1584,0.49191219884063325
+asof_v1,seasonal_naive_7d,store,10,1584,0.5964552573754449
+asof_v1,seasonal_naive_7d,store,11,1584,0.5945789909787449
+asof_v1,seasonal_naive_7d,store,12,1584,0.5707240795900566
+asof_v1,seasonal_naive_7d,store,13,1584,0.5761198727815023
+asof_v1,seasonal_naive_7d,store,14,1584,0.6230904903153992
+asof_v1,seasonal_naive_7d,store,15,1584,0.5713494612580959
+asof_v1,seasonal_naive_7d,store,16,1584,0.6011269920341038
+asof_v1,seasonal_naive_7d,store,17,1584,0.5512598456375158
+asof_v1,seasonal_naive_7d,store,18,1584,0.6370734572989234
+asof_v1,seasonal_naive_7d,store,19,1584,0.6299263816542553
+asof_v1,seasonal_naive_7d,store,2,1584,0.4622138452460138
+asof_v1,seasonal_naive_7d,store,20,1584,0.645899315607639
+asof_v1,seasonal_naive_7d,store,21,1584,0.584165825304169
+asof_v1,seasonal_naive_7d,store,22,1584,0.6250722664174819
+asof_v1,seasonal_naive_7d,store,23,1584,0.509792911543938
+asof_v1,seasonal_naive_7d,store,24,1584,0.4472453671548716
+asof_v1,seasonal_naive_7d,store,25,1584,0.5465623663310891
+asof_v1,seasonal_naive_7d,store,26,1584,0.6332024330557615
+asof_v1,seasonal_naive_7d,store,27,1584,0.521525855875982
+asof_v1,seasonal_naive_7d,store,28,1584,0.6054505818813266
+asof_v1,seasonal_naive_7d,store,29,1584,0.5262859467313719
+asof_v1,seasonal_naive_7d,store,3,1584,0.40126093605047214
+asof_v1,seasonal_naive_7d,store,30,1584,0.5864214776168314
+asof_v1,seasonal_naive_7d,store,31,1584,0.5260170834057297
+asof_v1,seasonal_naive_7d,store,32,1584,0.5988323211115184
+asof_v1,seasonal_naive_7d,store,33,1584,0.5710492693054129
+asof_v1,seasonal_naive_7d,store,34,1584,0.53592131822808
+asof_v1,seasonal_naive_7d,store,35,1584,0.5845109107522458
+asof_v1,seasonal_naive_7d,store,36,1584,0.5840182576561169
+asof_v1,seasonal_naive_7d,store,37,1584,0.45677666466451644
+asof_v1,seasonal_naive_7d,store,38,1584,0.4863285378082635
+asof_v1,seasonal_naive_7d,store,39,1584,0.532061184105533
+asof_v1,seasonal_naive_7d,store,4,1584,0.4443679708113926
+asof_v1,seasonal_naive_7d,store,40,1584,0.5873378825750852
+asof_v1,seasonal_naive_7d,store,41,1584,0.5153299710471121
+asof_v1,seasonal_naive_7d,store,42,1584,0.46404533484410915
+asof_v1,seasonal_naive_7d,store,43,1584,0.5559489268162805
+asof_v1,seasonal_naive_7d,store,44,1584,0.5843161134170194
+asof_v1,seasonal_naive_7d,store,45,1584,0.4989390306864442
+asof_v1,seasonal_naive_7d,store,46,1584,0.5755787163309689
+asof_v1,seasonal_naive_7d,store,47,1584,0.6876167698422916
+asof_v1,seasonal_naive_7d,store,48,1584,0.6249521567168673
+asof_v1,seasonal_naive_7d,store,49,1584,0.5904852563489724
+asof_v1,seasonal_naive_7d,store,5,1584,0.5012503106375086
+asof_v1,seasonal_naive_7d,store,50,1584,0.7122495176437249
+asof_v1,seasonal_naive_7d,store,51,1584,0.5064061603302732
+asof_v1,seasonal_naive_7d,store,52,1584,0.4606375183560441
+asof_v1,seasonal_naive_7d,store,53,1584,0.5194671584206542
+asof_v1,seasonal_naive_7d,store,54,1584,0.5452068542111573
+asof_v1,seasonal_naive_7d,store,6,1584,0.44436991385179425
+asof_v1,seasonal_naive_7d,store,7,1584,0.45461202653944915
+asof_v1,seasonal_naive_7d,store,8,1584,0.3982075870761435
+asof_v1,seasonal_naive_7d,store,9,1584,0.5900164681326985
+asof_v1,zero,store,1,1584,4.254436705800834
+asof_v1,zero,store,10,1584,3.688181205886288
+asof_v1,zero,store,11,1584,4.628699674733369
+asof_v1,zero,store,12,1584,3.9080580984555056
+asof_v1,zero,store,13,1584,3.7303774596907253
+asof_v1,zero,store,14,1584,3.9156156909383433
+asof_v1,zero,store,15,1584,3.912723426386968
+asof_v1,zero,store,16,1584,3.7199620628546097
+asof_v1,zero,store,17,1584,4.363863694876604
+asof_v1,zero,store,18,1584,4.208329540785388
+asof_v1,zero,store,19,1584,3.9703644998374563
+asof_v1,zero,store,2,1584,4.557699942314342
+asof_v1,zero,store,20,1584,4.444674178695807
+asof_v1,zero,store,21,1584,4.386559693624996
+asof_v1,zero,store,22,1584,3.859120525675424
+asof_v1,zero,store,23,1584,4.035694343458105
+asof_v1,zero,store,24,1584,4.6872175427037
+asof_v1,zero,store,25,1584,4.079478656951911
+asof_v1,zero,store,26,1584,3.6315516064119255
+asof_v1,zero,store,27,1584,4.563430429019658
+asof_v1,zero,store,28,1584,4.399308906226163
+asof_v1,zero,store,29,1584,4.29834319718032
+asof_v1,zero,store,3,1584,5.302079434124915
+asof_v1,zero,store,30,1584,3.7256817711523027
+asof_v1,zero,store,31,1584,4.331416245591935
+asof_v1,zero,store,32,1584,3.442732939830539
+asof_v1,zero,store,33,1584,4.087858934865726
+asof_v1,zero,store,34,1584,4.159252496513663
+asof_v1,zero,store,35,1584,3.5583863155472573
+asof_v1,zero,store,36,1584,4.168726178338409
+asof_v1,zero,store,37,1584,4.465178402828534
+asof_v1,zero,store,38,1584,4.451203283553667
+asof_v1,zero,store,39,1584,4.491208871783125
+asof_v1,zero,store,4,1584,4.370991039633719
+asof_v1,zero,store,40,1584,4.336960745176371
+asof_v1,zero,store,41,1584,4.475317318074742
+asof_v1,zero,store,42,1584,4.396316115112561
+asof_v1,zero,store,43,1584,4.357875228715626
+asof_v1,zero,store,44,1584,5.514572654491379
+asof_v1,zero,store,45,1584,5.433344198746003
+asof_v1,zero,store,46,1584,5.135087054815603
+asof_v1,zero,store,47,1584,5.325491811727888
+asof_v1,zero,store,48,1584,4.968583277388318
+asof_v1,zero,store,49,1584,5.271597437297841
+asof_v1,zero,store,5,1584,4.303292486752219
+asof_v1,zero,store,50,1584,4.868427381978749
+asof_v1,zero,store,51,1584,4.894861558312058
+asof_v1,zero,store,52,1584,4.894015643479618
+asof_v1,zero,store,53,1584,4.309561867114252
+asof_v1,zero,store,54,1584,3.8933202161713423
+asof_v1,zero,store,6,1584,4.68515466135845
+asof_v1,zero,store,7,1584,4.752467560772402
+asof_v1,zero,store,8,1584,4.909613604865157
+asof_v1,zero,store,9,1584,4.648145066963666
+asof_v1,lightgbm_global,temporal_regime,holiday_event,2541,0.4328406845468123
+asof_v1,lightgbm_global,temporal_regime,payday,7095,0.3897118454955368
+asof_v1,lightgbm_global,temporal_regime,regular_weekday,52800,0.39801961574591554
+asof_v1,lightgbm_global,temporal_regime,weekend,23100,0.3989921645108142
+asof_v1,seasonal_average_4w,temporal_regime,holiday_event,2541,0.5630067606762741
+asof_v1,seasonal_average_4w,temporal_regime,payday,7095,0.4689810533782047
+asof_v1,seasonal_average_4w,temporal_regime,regular_weekday,52800,0.4690791978141711
+asof_v1,seasonal_average_4w,temporal_regime,weekend,23100,0.45513459802422085
+asof_v1,seasonal_naive_7d,temporal_regime,holiday_event,2541,0.6522257629795329
+asof_v1,seasonal_naive_7d,temporal_regime,payday,7095,0.5601311411094311
+asof_v1,seasonal_naive_7d,temporal_regime,regular_weekday,52800,0.5588568784983727
+asof_v1,seasonal_naive_7d,temporal_regime,weekend,23100,0.528071011956402
+asof_v1,zero,temporal_regime,holiday_event,2541,4.383082954934286
+asof_v1,zero,temporal_regime,payday,7095,4.43895629252474
+asof_v1,zero,temporal_regime,regular_weekday,52800,4.346612548777699
+asof_v1,zero,temporal_regime,weekend,23100,4.580392642387481
