@@ -9,7 +9,7 @@ entrenada desde cero y adaptación de un codificador GRU entre grupos de tiendas
 - [Informe inicial intacto](ENTREGA1.PDF).
 - [Informe ejecutivo](INFORME_PROYECTO.PDF): nueve páginas con resumen, iteraciones,
   resultados reales y cómo obtener los datos.
-- Video de 5–10 minutos: pendiente de grabación y publicación en YouTube.
+- [Video de presentación en YouTube](https://www.youtube.com/watch?v=EwhxnnncJsg).
 
 ## Notebooks y Colab
 
