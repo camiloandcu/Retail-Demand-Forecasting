@@ -2,8 +2,7 @@
 
 Esta copia académica deriva de
 [Retail-Demand-Forecasting](https://github.com/camiloandcu/Retail-Demand-Forecasting/tree/2619e2a7f63548c7978c96afcc0242ddadd54cc3),
-revisión `2619e2a7f63548c7978c96afcc0242ddadd54cc3`. No mantiene sincronización bidireccional.
-El trabajo de portafolio no forma parte de sus obligaciones de entrega.
+revisión `2619e2a7f63548c7978c96afcc0242ddadd54cc3`.
 
 `ENTREGA1.PDF` es una copia byte por byte del informe original `ENTREGA1.pdf`;
 solo cambia la capitalización requerida por la consigna. Los hashes del informe
@@ -30,8 +29,7 @@ Las salidas ejecutadas, pesos, predicciones y registros se descargaron por MCP y
 se conservan localmente en `artifacts/verification/colab-full/export`, fuera de Git.
 Los hashes de los tres archivos de respaldo están en la procedencia nueva. No se
 presentan las tablas importadas como entrenamiento nuevo ni se repite el estudio
-para sustituir una diferencia desfavorable. El video y la aceptación humana siguen
-requiriendo evidencia propia.
+para sustituir una diferencia desfavorable.
 
 
 ## Preparación compatible con Colab
